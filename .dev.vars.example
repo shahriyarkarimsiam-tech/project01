@@ -1,0 +1,4 @@
+# Secret config for Wrangler local testing (never commit .dev.vars).
+BOT_TOKEN=replace-with-botfather-token
+ADMIN_TELEGRAM_IDS=123456789
+# Never set ENVIRONMENT=development on a public deployment.
