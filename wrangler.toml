@@ -1,6 +1,6 @@
 name = "telegram-task-lab-mvp"
 main = "src/worker.mjs"
-compatibility_date = "2026-11-09"
+compatibility_date = "2026-11-08"
 workers_dev = true
 
 [vars]
@@ -14,7 +14,7 @@ not_found_handling = "single-page-application"
 
 # AFTER creating D1 via `npx wrangler d1 create telegram-task-lab-db`,
 # uncomment and replace the id below with the real database UUID.
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "telegram-task-lab-db"
-# database_id = "REPLACE_WITH_REAL_DATABASE_ID"
+[[d1_databases]]
+binding = "DB"
+database_name = "telegram-task-lab-db"
+database_id = "a293c6a3-4123-48ae-bd1f-c3c88280e9c6"
