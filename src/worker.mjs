@@ -377,11 +377,11 @@ export default {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId,
-              text: '👋 *Welcome to TaskLab!*\n\nComplete usability testing tasks and earn points.\n\nTap below to launch the Mini App:',
+              text: '👋 *Welcome to TaskKit!*\n\nComplete usability testing tasks and earn points.\n\nTap below to launch the Mini App:',
               parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: '🚀 Open TaskLab Mini App', web_app: { url: host } }]
+                  [{ text: '🚀 Open TaskKit Mini App', web_app: { url: host } }]
                 ]
               }
             })

@@ -194,7 +194,7 @@ async function downloadCampaignCsv(id, scope = 'approved') {
     const response=await fetch(`/api/admin/campaigns/${id}/report.csv${scope==='internal'?'?scope=internal':''}`,{headers,cache:'no-store'});
     if(!response.ok){ const err=await response.json();throw new Error(err.message || 'Export failed'); }
     const blob=await response.blob(), url=URL.createObjectURL(blob), a=document.createElement('a');
-    a.href=url;a.download=`tasklab-${id}-${scope}.csv`;document.body.append(a);a.click();a.remove();
+    a.href=url;a.download=`taskkit-${id}-${scope}.csv`;document.body.append(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   } catch(error){toast(error.message,true);}
 }
@@ -258,7 +258,7 @@ async function boot() {
       if(result.ok){const local=await result.json();if(local.devKey){state.localKey=local.devKey;$('#local-controls').classList.remove('hidden');}}
     }
     if(!state.localKey && !tg?.initData){
-      $('#app-view').innerHTML='<div class="empty-state"><h2>Open TaskLab inside Telegram</h2><p>This application is a Telegram Mini App and requires a signed Telegram session.</p><div style="margin-top:20px"><a href="https://t.me/taskkitio_bot" class="primary-btn" style="display:inline-block;text-decoration:none;padding:12px 24px;color:#fff;background:#2563eb;border-radius:8px;font-weight:600;">Open @taskkitio_bot in Telegram ↗</a></div></div>';
+      $('#app-view').innerHTML='<div class="empty-state"><h2>Open TaskKit inside Telegram</h2><p>This application is a Telegram Mini App and requires a signed Telegram session.</p><div style="margin-top:20px"><a href="https://t.me/taskkitio_bot" class="primary-btn" style="display:inline-block;text-decoration:none;padding:12px 24px;color:#fff;background:#2563eb;border-radius:8px;font-weight:600;">Open @taskkitio_bot in Telegram ↗</a></div></div>';
       return;
     }
     await refresh();
