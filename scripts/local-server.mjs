@@ -98,7 +98,7 @@ const server = http.createServer(async (req, res) => {
   if (!path.startsWith(publicDir + '/') || !existsSync(path)) { res.writeHead(404); res.end('Not found'); return; }
   try {
     res.writeHead(200, { 'Content-Type': types[extname(path)] || 'application/octet-stream',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' https://telegram.org; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'",
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' https://telegram.org; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'self' https://web.telegram.org https://*.telegram.org https://telegram.org",
       'X-Content-Type-Options': 'nosniff' });
     res.end(readFileSync(path));
   } catch { res.writeHead(500); res.end('Read error'); }
