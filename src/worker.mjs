@@ -61,13 +61,30 @@ export async function verifyTelegramInitData(raw, botToken, nowSeconds = Math.fl
   if (!Number.isSafeInteger(authDate) || authDate > nowSeconds + 60 || nowSeconds - authDate > 3600) {
     throw new AppError('Telegram session expired. Close and reopen the app.', 401, 'expired_auth');
   }
-  const checkString = [...params.entries()]
-    .filter(([key]) => key !== 'hash' && key !== 'signature')
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, value]) => `${key}=${value}`).join('\n');
-  const secret = await hmac('WebAppData', botToken);
-  const computed = toHex(await hmac(secret, checkString));
-  if (!constantHexEqual(hash, computed)) throw new AppError('Invalid Telegram signature.', 401, 'bad_auth');
+  const pairsWithoutHash = [...params.entries()].filter(([key]) => key !== 'hash');
+  const pairsWithoutHashAndSig = pairsWithoutHash.filter(([key]) => key !== 'signature');
+
+  pairsWithoutHash.sort(([a], [b]) => a.localeCompare(b));
+  pairsWithoutHashAndSig.sort(([a], [b]) => a.localeCompare(b));
+
+  const checkString1 = pairsWithoutHash.map(([k, v]) => `${k}=${v}`).join('\n');
+  const checkString2 = pairsWithoutHashAndSig.map(([k, v]) => `${k}=${v}`).join('\n');
+
+  const secret = await hmac('WebAppData', (botToken || '').trim());
+  const computed1 = toHex(await hmac(secret, checkString1));
+  const computed2 = toHex(await hmac(secret, checkString2));
+
+  if (!constantHexEqual(hash, computed1) && !constantHexEqual(hash, computed2)) {
+    console.log('INIT_DATA_DEBUG:', JSON.stringify({
+      keys: [...params.keys()],
+      hash,
+      computed1,
+      computed2,
+      checkString1,
+      checkString2
+    }));
+    throw new AppError('Invalid Telegram signature.', 401, 'bad_auth');
+  }
   let user;
   try { user = JSON.parse(params.get('user') || 'null'); } catch { /* no user */ }
   if (!user || !Number.isSafeInteger(user.id) || user.id <= 0) throw new AppError('Telegram user unavailable.', 401, 'bad_auth');

@@ -263,7 +263,8 @@ async function boot() {
     }
     await refresh();
   }catch(error){
-    $('#app-view').innerHTML=`<div class="empty-state"><h2>Cannot load the application</h2><p>${safe(error.message)}</p><p>Check your connection, Telegram session, and database configuration.</p></div>`;
+    $('#app-view').innerHTML=`<div class="empty-state"><h2>Cannot load the application</h2><p>${safe(error.message)}</p><p>Check your connection, Telegram session, and database configuration.</p><div style="margin-top:18px"><button type="button" class="primary-btn" id="retry-btn">↻ Retry / Reload</button></div></div>`;
+    $('#retry-btn')?.addEventListener('click', () => { location.reload(); });
   }
 }
 boot();
