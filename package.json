@@ -7,7 +7,8 @@
     "start": "node scripts/local-server.mjs",
     "test": "node --test tests/*.test.mjs",
     "cloudflare:dev": "wrangler dev",
-    "cloudflare:deploy": "wrangler deploy"
+    "cloudflare:deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --var BOT_TOKEN:9019308897:AAHFSucw-fEAHGP74QRPGtZCMFSX_AkXcf8 --var ADMIN_TELEGRAM_IDS:7019220132 --var ENVIRONMENT:production"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"
