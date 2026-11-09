@@ -349,6 +349,32 @@ export default {
     if (!path.startsWith('/api/')) return env.ASSETS ? env.ASSETS.fetch(request) : error('not_found', 'Not found.', 404);
     if (request.method === 'OPTIONS') return error('method_not_allowed', 'Not allowed.', 405);
     if (request.method === 'GET' && path === '/api/health') return respond({ ok: true, version: '0.2.0', reward_type: 'demo_points_only' });
+    if (path === '/api/telegram-webhook' && request.method === 'POST') {
+      try {
+        const update = await request.json();
+        if (update?.message?.chat?.id && env.BOT_TOKEN) {
+          const chatId = update.message.chat.id;
+          const host = url.origin || 'https://telegram-task-lab-mvp.shahriyarkarimsiam.workers.dev';
+          await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: '👋 *Welcome to TaskLab!*\n\nComplete usability testing tasks and earn points.\n\nTap below to launch the Mini App:',
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🚀 Open TaskLab Mini App', web_app: { url: host } }]
+                ]
+              }
+            })
+          });
+        }
+      } catch (err) {
+        console.error('Webhook processing error:', err);
+      }
+      return respond({ ok: true });
+    }
     if (!env.DB) return error('not_configured', 'Database binding is missing.', 503);
     try {
       const user = await authenticate(request, env);

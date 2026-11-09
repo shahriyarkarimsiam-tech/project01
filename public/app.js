@@ -258,7 +258,7 @@ async function boot() {
       if(result.ok){const local=await result.json();if(local.devKey){state.localKey=local.devKey;$('#local-controls').classList.remove('hidden');}}
     }
     if(!state.localKey && !tg?.initData){
-      $('#app-view').innerHTML='<div class="empty-state"><h2>Open TaskLab inside Telegram</h2><p>This application requires a signed Telegram session. Ask the administrator for the bot launch link.<br/>For local development, use the included Node preview server.</p></div>';
+      $('#app-view').innerHTML='<div class="empty-state"><h2>Open TaskLab inside Telegram</h2><p>This application is a Telegram Mini App and requires a signed Telegram session.</p><div style="margin-top:20px"><a href="https://t.me/taskkitio_bot" class="primary-btn" style="display:inline-block;text-decoration:none;padding:12px 24px;color:#fff;background:#2563eb;border-radius:8px;font-weight:600;">Open @taskkitio_bot in Telegram ↗</a></div></div>';
       return;
     }
     await refresh();
