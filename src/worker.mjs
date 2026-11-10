@@ -570,7 +570,7 @@ export default {
     const path = url.pathname;
     if (!path.startsWith('/api/')) return env.ASSETS ? env.ASSETS.fetch(request) : error('not_found', 'Not found.', 404);
     if (request.method === 'OPTIONS') return error('method_not_allowed', 'Not allowed.', 405);
-    if (request.method === 'GET' && path === '/api/health') return respond({ ok: true, version: '1.0.0', platform: 'TaskKit', currency: 'USDT', reward_type: 'usdt_micro_rewards' });
+    if ((request.method === 'GET' || request.method === 'HEAD') && path === '/api/health') return respond({ ok: true, version: '1.0.0', platform: 'TaskKit', currency: 'USDT', reward_type: 'usdt_micro_rewards' });
     if (path === '/api/telegram-webhook' && request.method === 'POST') {
       try {
         const update = await request.json();
@@ -587,16 +587,30 @@ export default {
               await recordReferral(env.DB, inviterId, String(fromUser.id), env.BOT_TOKEN);
             }
           }
+          let replyText = '👋 *Welcome to TaskKit!*\n\nTest mobile apps, games, and web services and earn real USDT rewards.\n\nTap below to start earning:';
+          let btnText = '🚀 Open TaskKit (Test & Earn USDT)';
+
+          if (text.startsWith('/help')) {
+            replyText = 'ℹ️ *TaskKit Tester Guidelines*\n\n1. Open the Mini App to browse active campaigns.\n2. Follow instructions and test the app/game on your mobile device.\n3. Answer the 3 quality questions with genuine feedback.\n4. Rewards are credited in real USDT upon admin review.\n5. Minimum withdrawal is 10.00 USDT (BEP-20 BNB Smart Chain).\n6. 10 lifetime invites unlock withdrawals permanently!\n\nNeed support? Email: trade09siam@gmail.com';
+            btnText = '📱 Open TaskKit App';
+          } else if (text.startsWith('/tasks')) {
+            replyText = '📱 *Active Testing Campaigns*\n\nNew QA testing slots are available! Test mobile apps, websites, and Web3 games to earn USDT.\n\nTap below to view available tasks:';
+            btnText = '📱 View Available Tasks';
+          } else if (text.startsWith('/withdraw')) {
+            replyText = '💸 *USDT Withdrawals (BEP-20)*\n\n• Minimum payout: *10.00 USDT*\n• Network: *BNB Smart Chain (BEP-20)*\n• Qualification: *10 lifetime friends invited*\n• Processing: Direct to your 0x... wallet\n\nTap below to check your balance and withdraw:';
+            btnText = '💸 Open Withdrawals Page';
+          }
+
           await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId,
-              text: '👋 *Welcome to TaskKit!*\n\nTest mobile apps, games, and web services and earn real USDT rewards.\n\nTap below to start earning:',
+              text: replyText,
               parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: '🚀 Open TaskKit (Test & Earn USDT)', web_app: { url: host } }]
+                  [{ text: btnText, web_app: { url: host } }]
                 ]
               }
             })
