@@ -1,6 +1,6 @@
 {
-  "name": "telegram-sponsored-tasks-mvp",
-  "version": "0.2.0",
+  "name": "taskkit-platform",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {

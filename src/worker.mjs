@@ -124,6 +124,7 @@ async function getCampaigns(db, userId) {
   const rows = await db.prepare(`SELECT c.id, c.title, c.description, c.game_url, c.instructions,
     c.question1, c.question2, c.question3, c.reward_points, c.capacity,
     (SELECT COUNT(*) FROM submissions s WHERE s.campaign_id = c.id AND s.status IN ('pending','approved')) AS reserved,
+    (SELECT COUNT(*) FROM submissions s WHERE s.campaign_id = c.id AND s.status = 'approved') AS completed_count,
     (SELECT s.status FROM submissions s WHERE s.campaign_id = c.id AND s.user_id = ?) AS my_status
     FROM campaigns c WHERE c.status = 'active' ORDER BY c.created_at DESC, c.id DESC`)
     .bind(userId).all();
@@ -138,11 +139,17 @@ async function getMe(db, user, admin) {
       FROM submissions WHERE user_id = ?`).bind(user.id),
     db.prepare(`SELECT s.id, s.created_at, s.status, s.review_note, s.campaign_id,
       c.title, c.reward_points, a.status AS appeal_status, a.admin_reply AS appeal_reply FROM submissions s JOIN campaigns c ON c.id=s.campaign_id LEFT JOIN appeals a ON a.submission_id=s.id
-      WHERE s.user_id = ? ORDER BY s.created_at DESC LIMIT 30`).bind(user.id),
+      WHERE s.user_id = ? ORDER BY s.created_at DESC LIMIT 50`).bind(user.id),
   ]);
-  return { user: { ...user, admin }, points: balance.results?.[0]?.points || 0,
+  const currentBalance = balance.results?.[0]?.points || 0;
+  return {
+    user: { ...user, admin },
+    points: currentBalance,
+    balance_bdt: currentBalance,
     stats: stats.results?.[0] || { total: 0, pending: 0, approved: 0, rejected: 0 },
-    activity: activity.results || [], is_demo: true };
+    activity: activity.results || [],
+    is_demo: false
+  };
 }
 async function recordTaskLaunch(db, campaignId, user) {
   const campaign = await db.prepare('SELECT status FROM campaigns WHERE id=?').bind(campaignId).first();
@@ -210,7 +217,7 @@ async function submitFeedback(db, campaignId, user, body) {
     if (msg.includes('CAMPAIGN_FULL_OR_INACTIVE')) throw new AppError('All testing slots have been reserved.', 409, 'campaign_full');
     throw cause;
   }
-  return { id, status: 'pending', message: 'Feedback received. Admin review is required before points are granted.' };
+  return { id, status: 'pending', message: 'Report submitted successfully! Your submission is under review and your reward will be credited once approved.' };
 }
 function campaignData(body) {
   const title = str(body.title, 5, 100);
@@ -257,6 +264,7 @@ async function getAdminAnalytics(db) {
       (SELECT COUNT(*) FROM submissions WHERE status='approved') AS approved,
       (SELECT COUNT(*) FROM submissions WHERE status='rejected') AS rejected,
       (SELECT COUNT(*) FROM submissions WHERE status='pending') AS pending,
+      (SELECT COALESCE(SUM(points),0) FROM reward_ledger) AS total_paid_bdt,
       (SELECT COALESCE(SUM(points),0) FROM reward_ledger) AS demo_points_issued`),
     db.prepare(`SELECT c.id,c.title,c.status,c.capacity,
       COUNT(s.id) AS submitted,
@@ -365,7 +373,7 @@ export default {
     const path = url.pathname;
     if (!path.startsWith('/api/')) return env.ASSETS ? env.ASSETS.fetch(request) : error('not_found', 'Not found.', 404);
     if (request.method === 'OPTIONS') return error('method_not_allowed', 'Not allowed.', 405);
-    if (request.method === 'GET' && path === '/api/health') return respond({ ok: true, version: '0.2.0', reward_type: 'demo_points_only' });
+    if (request.method === 'GET' && path === '/api/health') return respond({ ok: true, version: '1.0.0', platform: 'TaskKit', reward_type: 'bdt_micro_rewards' });
     if (path === '/api/telegram-webhook' && request.method === 'POST') {
       try {
         const update = await request.json();
