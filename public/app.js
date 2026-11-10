@@ -230,14 +230,14 @@ function withdrawView() {
           <div class="field">
             <label for="withdraw-network">Network</label>
             <select id="withdraw-network" required>
+              <option value="BEP20" selected>USDT (BEP-20) - BNB Smart Chain (Recommended)</option>
               <option value="TRC20">USDT (TRC-20) - Tron Network</option>
               <option value="TON">USDT (TON) - Telegram Open Network</option>
-              <option value="BEP20">USDT (BEP-20) - BNB Smart Chain</option>
             </select>
           </div>
           <div class="field form-full">
             <label for="withdraw-wallet">USDT Wallet Address</label>
-            <input id="withdraw-wallet" type="text" required minlength="15" maxlength="120" placeholder="Paste your USDT wallet address..." />
+            <input id="withdraw-wallet" type="text" required minlength="15" maxlength="120" placeholder="0x... (BEP-20 / EVM address)" />
           </div>
         </div>
         <div class="action-bar">
@@ -257,16 +257,27 @@ function withdrawView() {
       <table class="compact-table">
         <thead><tr><th>Date</th><th>Amount</th><th>Network</th><th>Wallet Address</th><th>Status</th><th>Admin Note / TX</th></tr></thead>
         <tbody>
-          ${state.me.withdrawals.map(w => `
+          ${state.me.withdrawals.map(w => {
+            const cleanNote = (w.admin_note || '').trim();
+            const txMatch = cleanNote.match(/(?:TX:\s*)?(0x[a-fA-F0-9]{64})/i);
+            let noteHtml = safe(w.admin_note || '—');
+            if (txMatch) {
+              const hash = txMatch[1];
+              const explorerUrl = w.network === 'BEP20'
+                ? `https://bscscan.com/tx/${hash}`
+                : (w.network === 'TRC20' ? `https://tronscan.org/#/transaction/${hash}` : `https://tonscan.org/tx/${hash}`);
+              noteHtml = `<a href="${explorerUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-weight:600;text-decoration:underline;">View on Explorer ↗</a>`;
+            }
+            return `
             <tr>
               <td>${timeLabel(w.created_at)}</td>
               <td><strong style="color:#059669;">${formatUsdt(w.amount)} USDT</strong></td>
               <td><span class="pill active">${safe(w.network)}</span></td>
               <td><code>${safe(w.wallet_address.slice(0,8))}...${safe(w.wallet_address.slice(-6))}</code></td>
               <td>${w.status === 'pending' ? '<span class="pill pending">⏳ Pending</span>' : w.status === 'completed' ? '<span class="pill approved">✓ Paid</span>' : '<span class="pill rejected">✕ Rejected</span>'}</td>
-              <td>${safe(w.admin_note || '—')}</td>
+              <td>${noteHtml}</td>
             </tr>
-          `).join('')}
+          `;}).join('')}
         </tbody>
       </table>
     ` : '<div class="empty-state">No withdrawal requests submitted yet.</div>'}
@@ -334,25 +345,37 @@ function adminWithdrawalView() {
     <table class="compact-table">
       <thead><tr><th>Tester</th><th>Lifetime Invites</th><th>Amount</th><th>Network & Wallet</th><th>Date</th><th>Status</th><th>Action / TX Note</th></tr></thead>
       <tbody>
-        ${state.adminWithdrawals.map(w => `
+        ${state.adminWithdrawals.map(w => {
+          const isBep20 = w.network === 'BEP20';
+          const explorerAddrUrl = isBep20
+            ? `https://bscscan.com/address/${w.wallet_address}`
+            : (w.network === 'TRC20' ? `https://tronscan.org/#/address/${w.wallet_address}` : `https://tonscan.org/address/${w.wallet_address}`);
+          return `
           <tr>
             <td><strong>${safe(w.tester_name || 'Tester')}</strong><div class="help-text">${w.username ? '@' + safe(w.username) : safe(w.user_id)}</div></td>
             <td><span class="pill ${w.lifetime_invites >= 10 ? 'approved' : 'rejected'}">${w.lifetime_invites} invites</span></td>
             <td><strong style="color:#059669;font-size:13px;">${formatUsdt(w.amount)} USDT</strong></td>
-            <td><span class="pill active">${safe(w.network)}</span><div style="font-size:11px;word-break:break-all;margin-top:4px;"><code>${safe(w.wallet_address)}</code></div></td>
+            <td>
+              <span class="pill active">${safe(w.network)}</span>
+              <div style="font-size:11px;word-break:break-all;margin-top:4px;"><code>${safe(w.wallet_address)}</code></div>
+              <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+                <button type="button" class="flat-link" data-copy-addr="${safe(w.wallet_address)}" style="font-size:10px;padding:2px 6px;">📋 Copy</button>
+                <a href="${explorerAddrUrl}" target="_blank" rel="noopener noreferrer" style="font-size:10px;color:#2563eb;text-decoration:underline;">↗ Explorer</a>
+              </div>
+            </td>
             <td>${timeLabel(w.created_at)}</td>
             <td>${statusLabel(w.status)}</td>
             <td>
               ${w.status === 'pending' ? `
                 <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                  <input id="w-note-${w.id}" placeholder="TX Hash or rejection reason" style="padding:6px 8px;font-size:11px;min-width:140px;" />
+                  <input id="w-note-${w.id}" placeholder="Paste TxID (0x...) or reason" style="padding:6px 8px;font-size:11px;min-width:140px;" />
                   <button type="button" class="primary-btn" style="background:#26a17b;padding:6px 12px;font-size:11px;" data-w-id="${safe(w.id)}" data-w-as="completed">Mark Paid</button>
                   <button type="button" class="danger-btn" style="padding:6px 10px;font-size:11px;" data-w-id="${safe(w.id)}" data-w-as="rejected">Reject</button>
                 </div>
               ` : `<span class="help-text">${safe(w.admin_note || 'Processed')}</span>`}
             </td>
           </tr>
-        `).join('')}
+        `;}).join('')}
       </tbody>
     </table>
   </div>`;
@@ -452,6 +475,15 @@ document.addEventListener('click', async (e)=>{
       input.select();
       navigator.clipboard?.writeText(input.value);
       toast('Invite link copied to clipboard!');
+    }
+    return;
+  }
+  if(button.dataset.copyAddr){
+    const addr = button.dataset.copyAddr;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(addr).then(() => toast('Wallet address copied!')).catch(() => toast(`Address: ${addr}`));
+    } else {
+      toast(`Address: ${addr}`);
     }
     return;
   }

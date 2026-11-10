@@ -261,12 +261,20 @@ test('Referral tracking (10 lifetime invites requirement) and USDT withdrawals f
   assert.equal(overBal.status, 400);
   assert.match(overBal.body.message, /Insufficient available balance/);
 
-  // 8. Successful withdrawal of 10 USDT
+  // 7b. Invalid BEP-20 wallet address fails
+  const invalidBep20 = await request('withdrawals', '10001', {
+    amount: 10, wallet_address: 'invalid-address-not-0x', network: 'BEP20'
+  }, key);
+  assert.equal(invalidBep20.status, 400);
+  assert.match(invalidBep20.body.message, /Invalid BEP-20 address/);
+
+  // 8. Successful withdrawal of 10 USDT via BEP20
   const successWithdraw = await request('withdrawals', '10001', {
-    amount: 10, wallet_address: 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', network: 'TRC20'
+    amount: 10, wallet_address: '0x71C8A18579d4B179e89d1b64417730e26B762D71', network: 'BEP20'
   }, key);
   assert.equal(successWithdraw.status, 201);
   assert.equal(successWithdraw.body.status, 'pending');
+  assert.equal(successWithdraw.body.network, 'BEP20');
   const withdrawId = successWithdraw.body.id;
 
   // Available balance should now be 37 - 10 = 27 USDT

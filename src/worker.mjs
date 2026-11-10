@@ -178,6 +178,52 @@ async function notifyReferralInviter(inviterId, count, botToken) {
   } catch {}
 }
 
+async function notifyAdminNewWithdrawal(env, user, amount, network, wallet) {
+  if (!env?.BOT_TOKEN || !env?.ADMIN_TELEGRAM_IDS) return;
+  const adminIds = String(env.ADMIN_TELEGRAM_IDS).split(',').map(s => s.trim()).filter(Boolean);
+  const text = `🔔 *New USDT Withdrawal Request!*
+
+• *User:* ${user.first_name || 'Tester'} (${user.username ? '@' + user.username : user.id})
+• *Amount:* *${amount.toFixed(2)} USDT*
+• *Network:* *${network}*
+• *Wallet Address:*
+\`${wallet}\`
+
+👉 *Action:* Send ${amount.toFixed(2)} USDT (${network}) to the address above, then mark Paid with the TxID in TaskKit Admin Studio.`;
+
+  for (const adminId of adminIds) {
+    try {
+      await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: adminId, text, parse_mode: 'Markdown' })
+      });
+    } catch {}
+  }
+}
+
+async function notifyUserWithdrawalStatus(botToken, userId, amount, network, decision, note) {
+  if (!botToken || !userId) return;
+  let text = '';
+  const cleanTx = (note || '').trim().replace(/^TX:\s*/i, '');
+  const isTx = /^0x[a-fA-F0-9]{64}$/i.test(cleanTx);
+  if (decision === 'completed') {
+    const txLink = isTx && network === 'BEP20'
+      ? `\n\n🔗 *Verify on BscScan:*\nhttps://bscscan.com/tx/${cleanTx}`
+      : (note ? `\n\n*Transaction Note / Ref:* \`${note}\`` : '');
+    text = `💸 *Withdrawal Successful!*\n\nYour withdrawal of *${amount.toFixed(2)} USDT* (${network}) has been processed and sent to your wallet!${txLink}\n\nThank you for testing with TaskKit! 🚀`;
+  } else {
+    text = `⚠️ *Withdrawal Update*\n\nYour withdrawal request for *${amount.toFixed(2)} USDT* could not be processed.\n\n*Reason:* ${note || 'No reason provided.'}\n\nThe funds have been restored to your available TaskKit balance.`;
+  }
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: userId, text, parse_mode: 'Markdown' })
+    });
+  } catch {}
+}
+
 async function getMe(db, user, admin) {
   const [balance, stats, activity, invites, withdrawals] = await db.batch([
     db.prepare('SELECT ROUND(COALESCE(SUM(points), 0), 4) AS points FROM reward_ledger WHERE user_id = ?').bind(user.id),
@@ -433,14 +479,19 @@ async function reviewSubmission(db, actor, submissionId, body) {
   return { id: submissionId, status: decision };
 }
 
-async function requestWithdrawal(db, user, body) {
+async function requestWithdrawal(db, user, body, env) {
   const amount = positiveNumber(body.amount, 10, 1000000);
   if (!amount || amount < 10) throw new AppError('Minimum withdrawal amount is 10 USDT.', 400, 'min_withdrawal');
   const walletAddress = str(body.wallet_address, 15, 120);
   if (!walletAddress) throw new AppError('Enter a valid USDT wallet address (15–120 characters).', 400, 'invalid_wallet');
-  const network = str(body.network, 3, 20) || 'TRC20';
-  if (!['TRC20', 'TON', 'BEP20'].includes(network.toUpperCase())) {
-    throw new AppError('Supported networks are TRC20, TON, and BEP20.', 400, 'invalid_network');
+  const network = (str(body.network, 3, 20) || 'BEP20').toUpperCase();
+  if (!['TRC20', 'TON', 'BEP20'].includes(network)) {
+    throw new AppError('Supported networks are BEP20 (recommended), TRC20, and TON.', 400, 'invalid_network');
+  }
+
+  // If BEP20, validate standard 0x EVM format (42 chars hex)
+  if (network === 'BEP20' && !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+    throw new AppError('Invalid BEP-20 address. BEP-20 (BNB Smart Chain) addresses must start with 0x and be 42 characters long.', 400, 'invalid_bep20_address');
   }
 
   // 1. Verify lifetime invite requirement: at least 10 invites required
@@ -466,16 +517,19 @@ async function requestWithdrawal(db, user, body) {
   // 3. Insert withdrawal request
   const id = crypto.randomUUID();
   await db.prepare(`INSERT INTO withdrawals (id, user_id, amount, wallet_address, network, status)
-    VALUES (?, ?, ?, ?, ?, 'pending')`).bind(id, user.id, amount, walletAddress, network.toUpperCase()).run();
+    VALUES (?, ?, ?, ?, ?, 'pending')`).bind(id, user.id, amount, walletAddress, network).run();
 
-  await audit(db, user.id, 'withdrawal.request', id, { amount, wallet: walletAddress, network: network.toUpperCase() });
+  await audit(db, user.id, 'withdrawal.request', id, { amount, wallet: walletAddress, network });
+  if (env) {
+    void notifyAdminNewWithdrawal(env, user, amount, network, walletAddress).catch(() => {});
+  }
   return {
     id,
     amount,
-    network: network.toUpperCase(),
+    network,
     wallet_address: walletAddress,
     status: 'pending',
-    message: `Withdrawal request for ${amount.toFixed(2)} USDT (${network.toUpperCase()}) submitted successfully! Processing time: 24–48 hours.`
+    message: `Withdrawal request for ${amount.toFixed(2)} USDT (${network}) submitted successfully! Processing time: 24–48 hours.`
   };
 }
 
@@ -487,7 +541,7 @@ async function getAdminWithdrawals(db) {
   return rows.results || [];
 }
 
-async function reviewWithdrawal(db, actor, id, body) {
+async function reviewWithdrawal(db, actor, id, body, env) {
   const decision = body.decision;
   if (decision !== 'completed' && decision !== 'rejected') {
     throw new AppError('Decision must be completed or rejected.', 400, 'bad_decision');
@@ -496,7 +550,7 @@ async function reviewWithdrawal(db, actor, id, body) {
   if (decision === 'rejected' && note.length < 5) {
     throw new AppError('Provide a rejection reason for the user.', 400, 'note_required');
   }
-  const existing = await db.prepare('SELECT id, status, user_id, amount FROM withdrawals WHERE id = ?').bind(id).first();
+  const existing = await db.prepare('SELECT id, status, user_id, amount, network FROM withdrawals WHERE id = ?').bind(id).first();
   if (!existing) throw new AppError('Withdrawal not found.', 404, 'not_found');
   if (existing.status !== 'pending') throw new AppError('Withdrawal already processed.', 409, 'already_processed');
 
@@ -504,6 +558,9 @@ async function reviewWithdrawal(db, actor, id, body) {
     WHERE id = ? AND status = 'pending'`).bind(decision, note, actor, id).run();
 
   await audit(db, actor, `withdrawal.${decision}`, id, { note, amount: existing.amount, user_id: existing.user_id });
+  if (env?.BOT_TOKEN) {
+    void notifyUserWithdrawalStatus(env.BOT_TOKEN, existing.user_id, existing.amount, existing.network, decision, note).catch(() => {});
+  }
   return { id, status: decision, message: `Withdrawal ${decision}.` };
 }
 
@@ -564,7 +621,7 @@ export default {
         return respond({ ok: true, tracked });
       }
       if (request.method === 'POST' && path === '/api/withdrawals') {
-        return respond(await requestWithdrawal(env.DB, user, await jsonBody(request)), 201);
+        return respond(await requestWithdrawal(env.DB, user, await jsonBody(request), env), 201);
       }
       if (request.method === 'GET' && path === '/api/withdrawals') {
         const list = await env.DB.prepare(`SELECT id, amount, wallet_address, network, status, admin_note, created_at, processed_at
@@ -585,7 +642,7 @@ export default {
         if (request.method === 'GET' && path === '/api/admin/analytics') return respond(await getAdminAnalytics(env.DB));
         if (request.method === 'GET' && path === '/api/admin/appeals') return respond({ appeals: await getAdminAppeals(env.DB) });
         match = path.match(/^\/api\/admin\/withdrawals\/([a-f0-9-]{36})\/review$/);
-        if (match && request.method === 'POST') return respond(await reviewWithdrawal(env.DB, user.id, match[1], await jsonBody(request)));
+        if (match && request.method === 'POST') return respond(await reviewWithdrawal(env.DB, user.id, match[1], await jsonBody(request), env));
         match = path.match(/^\/api\/admin\/appeals\/([a-f0-9-]{36})\/answer$/);
         if (match && request.method === 'POST') return respond(await answerAppeal(env.DB, user.id, match[1], await jsonBody(request)));
         match = path.match(/^\/api\/admin\/campaigns\/([a-f0-9-]{36})\/report\.csv$/);
