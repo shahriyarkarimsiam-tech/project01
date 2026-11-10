@@ -18,6 +18,10 @@ if (db.prepare('PRAGMA user_version').get().user_version < 2) {
   db.exec(readFileSync(join(root, 'migrations', '0002_quality_reporting.sql'), 'utf8'));
   db.exec('PRAGMA user_version = 2');
 }
+if (db.prepare('PRAGMA user_version').get().user_version < 4) {
+  db.exec(readFileSync(join(root, 'migrations', '0004_referrals_and_withdrawals.sql'), 'utf8'));
+  db.exec('PRAGMA user_version = 4');
+}
 
 class Statement {
   constructor(db, sql, args = []) { this.db = db; this.sql = sql; this.args = args; }

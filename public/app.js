@@ -4,7 +4,7 @@ try { tg?.ready(); tg?.expand(); } catch { /* Regular browser preview */ }
 const $ = (selector) => document.querySelector(selector);
 const safe = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const smallText = (value, n=140) => String(value ?? '').length > n ? String(value).slice(0,n-1)+'…' : String(value ?? '');
-const state = { view: 'home', me: null, campaigns: [], adminCampaigns: [], reviews: [], appeals: [], analytics: null, adminTab: 'campaigns', localKey: null, localUser: '10001', selectedCampaign: null, loading: false };
+const state = { view: 'home', me: null, campaigns: [], adminCampaigns: [], reviews: [], appeals: [], adminWithdrawals: [], analytics: null, adminTab: 'campaigns', localKey: null, localUser: '10001', selectedCampaign: null, loading: false };
 let toastTimeout;
 
 function formatUsdt(amount) {
@@ -25,6 +25,7 @@ function toast(message, failed = false) {
 function statusLabel(status, points = 0) {
   if (status === 'pending') return '<span class="pill pending">⏳ Under Review</span>';
   if (status === 'approved') return `<span class="pill approved">✓ Approved (+${formatUsdt(points)} USDT)</span>`;
+  if (status === 'completed') return `<span class="pill approved">✓ Paid</span>`;
   if (status === 'rejected') return '<span class="pill rejected">✕ Rejected</span>';
   return `<span class="pill ${safe(status)}">${safe(status)}</span>`;
 }
@@ -56,8 +57,14 @@ async function refresh() {
   render();
 }
 async function refreshAdmin() {
-  const [campaigns, reviews, appeals, analytics] = await Promise.all([api('admin/campaigns'), api('admin/submissions'), api('admin/appeals'), api('admin/analytics')]);
-  state.adminCampaigns = campaigns.campaigns; state.reviews = reviews.submissions; state.appeals = appeals.appeals; state.analytics=analytics;
+  const [campaigns, reviews, appeals, analytics, withdrawals] = await Promise.all([
+    api('admin/campaigns'), api('admin/submissions'), api('admin/appeals'), api('admin/analytics'), api('admin/withdrawals')
+  ]);
+  state.adminCampaigns = campaigns.campaigns;
+  state.reviews = reviews.submissions;
+  state.appeals = appeals.appeals;
+  state.analytics = analytics;
+  state.adminWithdrawals = withdrawals.withdrawals || [];
 }
 function pageHead(title, subtitle, right='') {
   return `<div class="section-head"><div><h2 class="section-title">${safe(title)}</h2><p class="section-sub">${safe(subtitle)}</p></div>${right}</div>`;
@@ -112,11 +119,14 @@ function activityTable(rows) {
 function homeView() {
   const n = state.me.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
   const available = state.campaigns.filter(c => !c.my_status && c.capacity > (c.reserved || 0));
-  return `<section class="hero"><div class="hero-content"><div class="hero-kicker">₮ VERIFIED TESTING & USDT REWARDS</div><h1>Test Client Apps.<br/>Earn Real USDT Rewards.</h1>
+  return `<section class="hero"><div class="hero-content"><div class="hero-kicker">₮ VERIFIED MOBILE TESTING & USDT REWARDS</div><h1>Test Client Apps.<br/>Earn Real USDT Rewards.</h1>
     <p>Help top tech startups and global companies test their apps, games, and web services. Complete structured usability tests, share honest feedback reports, and earn USDT for every approved test.</p>
-    <button class="primary-btn" data-nav="tasks">Browse Available Tasks <span>↗</span></button></div><div class="hero-shape" aria-hidden="true"></div></section>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <button class="primary-btn" data-nav="tasks">Browse Available Tasks <span>↗</span></button>
+      <button class="secondary-btn" data-nav="withdraw" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);">Withdraw USDT (${formatUsdt(state.me.available_balance)}) →</button>
+    </div></div><div class="hero-shape" aria-hidden="true"></div></section>
     <div class="stats-grid cols-4">
-      <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(state.me.points)} USDT</div><div class="stat-label">Total Real Earnings (USDT)</div></div>
+      <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(state.me.available_balance)} USDT</div><div class="stat-label">Available for Withdrawal</div></div>
       <div class="stat"><div class="stat-icon orange" style="background:#e6f8f2;color:#13795b;">✓</div><div class="stat-number">${n.approved || 0}</div><div class="stat-label">Tasks Completed & Paid</div></div>
       <div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">${n.pending || 0}</div><div class="stat-label">Reports Under Review</div></div>
       <div class="stat"><div class="stat-icon orange">▦</div><div class="stat-number">${available.length}</div><div class="stat-label">Tasks Available to Earn</div></div>
@@ -134,15 +144,135 @@ function tasksView() {
 }
 function activityView() {
   const s = state.me.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
-  return `${pageHead('My Earnings & Task History', 'Full breakdown of your completed tasks, pending reviews, and earned USDT.')}
+  return `${pageHead('My Earnings & Task History', 'Full breakdown of your completed tasks, pending reviews, and earned USDT.', '<button class="primary-btn" data-nav="withdraw" style="background:#26a17b;color:#fff;">Withdraw Funds (${formatUsdt(state.me.available_balance)} USDT) →</button>')}
   <div class="stats-grid" style="margin-bottom:20px">
-    <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(state.me.points)} USDT</div><div class="stat-label">Total Earned (USDT)</div></div>
+    <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(state.me.available_balance)} USDT</div><div class="stat-label">Available for Withdrawal</div></div>
     <div class="stat"><div class="stat-icon orange" style="background:#e6f8f2;color:#13795b;">✓</div><div class="stat-number">${s.approved || 0}</div><div class="stat-label">Completed & Paid Tasks</div></div>
     <div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">${s.pending || 0}</div><div class="stat-label">Reports Under Review</div></div>
   </div>
   ${activityTable(state.me.activity)}
-  <div class="helper-note" style="margin-top:20px;border-color:#26a17b;background:#e6f8f2;color:#0f5132;">Rewards are credited in USDT immediately upon review approval. If a report is rejected due to lack of detail, you can submit an appeal explaining your testing steps.</div>`;
+  <div class="helper-note" style="margin-top:20px;border-color:#26a17b;background:#e6f8f2;color:#0f5132;">Rewards are credited in USDT immediately upon review approval. Minimum withdrawal is 10.00 USDT.</div>`;
 }
+
+function withdrawView() {
+  const canWithdraw = state.me.can_withdraw;
+  const invites = state.me.lifetime_invites || 0;
+  const needed = Math.max(0, 10 - invites);
+  const percent = Math.min(100, Math.round((invites / 10) * 100));
+  const botLink = `https://t.me/taskkitio_bot?start=ref_${state.me.user.id}`;
+
+  return `<button class="breadcrumb-button" data-nav="activity">← Back to Earnings</button>
+  ${pageHead('Withdraw USDT', 'Request payout to your USDT crypto wallet.')}
+  <div class="stats-grid" style="margin-bottom:20px">
+    <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(state.me.available_balance)} USDT</div><div class="stat-label">Available to Withdraw</div></div>
+    <div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">10.00 USDT</div><div class="stat-label">Minimum Withdrawal</div></div>
+    <div class="stat"><div class="stat-icon ${canWithdraw ? 'orange' : 'blue'}" style="background:${canWithdraw ? '#e6f8f2' : '#fff7ed'};color:${canWithdraw ? '#13795b' : '#c2410c'};">${canWithdraw ? '✓' : '🔒'}</div><div class="stat-number">${invites}/10</div><div class="stat-label">${canWithdraw ? 'Withdrawals Unlocked' : 'Invites Required'}</div></div>
+  </div>
+
+  ${!canWithdraw ? `
+    <div class="paper" style="border: 2px solid #f59e0b; background: #fffdf5; margin-bottom: 24px;">
+      <div style="display:flex;align-items:flex-start;gap:14px;">
+        <div style="width:40px;height:40px;border-radius:10px;background:#fef3c7;display:grid;place-items:center;font-size:22px;">🔒</div>
+        <div style="flex:1;">
+          <h3 style="margin:0;color:#92400e;font-size:16px;">Withdrawal Locked: 10 Lifetime Invites Required</h3>
+          <p style="margin:6px 0 12px;font-size:12px;color:#78350f;line-height:1.6;">
+            To qualify for withdrawals, invite at least <strong>10 friends</strong> to TaskKit using your Telegram invite link.
+            <strong>This is a one-time lifetime requirement:</strong> once you reach 10 invites, your account is permanently unlocked for your 1st, 2nd, 3rd, and all future withdrawals!
+          </p>
+          <div style="margin:14px 0 8px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:6px;">
+              <span style="color:#78350f;">Lifetime Invite Progress:</span>
+              <span style="color:#b45309;font-weight:800;">${invites} / 10 Friends (${percent}%)</span>
+            </div>
+            <div style="height:10px;background:#fde68a;border-radius:10px;overflow:hidden;">
+              <div style="height:100%;width:${percent}%;background:#d97706;border-radius:10px;transition:width 0.3s;"></div>
+            </div>
+            <div style="font-size:11px;color:#92400e;margin-top:6px;font-weight:600;">⚡ Need ${needed} more friend(s) to permanently unlock USDT payouts.</div>
+          </div>
+          <div style="margin-top:16px;background:#fff;border:1px solid #fcd34d;border-radius:10px;padding:14px;">
+            <label style="display:block;font-size:11px;font-weight:800;color:#78350f;margin-bottom:6px;">YOUR TELEGRAM INVITE LINK</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input id="ref-link-input" type="text" readonly value="${botLink}" style="flex:1;min-width:180px;background:#fffbeb;border:1px solid #fde68a;font-size:11px;padding:9px 11px;border-radius:8px;color:#78350f;font-weight:600;" />
+              <button type="button" class="secondary-btn" id="copy-ref-btn">📋 Copy Link</button>
+              <button type="button" class="primary-btn" id="share-ref-btn" style="background:#26a17b;color:#fff;">🚀 Share on Telegram</button>
+            </div>
+            <p style="margin:8px 0 0;font-size:11px;color:#92400e;">When friends click your link and start the bot, your invite count updates automatically and you receive an instant bot notification!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  ` : `
+    <div class="paper" style="border: 2px solid #26a17b; background: #f0fdf9; margin-bottom: 24px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:40px;height:40px;border-radius:10px;background:#d1fae5;display:grid;place-items:center;color:#059669;font-size:22px;font-weight:800;">✓</div>
+        <div>
+          <h3 style="margin:0;color:#065f46;font-size:15px;">Lifetime Withdrawal Qualification Satisfied</h3>
+          <p style="margin:4px 0 0;font-size:12px;color:#047857;">You have invited <strong>${invites} friends</strong> (minimum 10 required). Withdrawals are permanently unlocked for your account for all future requests.</p>
+        </div>
+      </div>
+    </div>
+  `}
+
+  <div class="paper">
+    <h3>Request Withdrawal</h3>
+    <p>Minimum payout is 10.00 USDT. Withdrawals are processed within 24–48 hours directly to your crypto wallet.</p>
+    ${canWithdraw ? `
+      <form id="withdraw-form">
+        <div class="form-grid">
+          <div class="field">
+            <label for="withdraw-amount">Amount (USDT)</label>
+            <input id="withdraw-amount" type="number" step="0.01" min="10" max="${state.me.available_balance}" placeholder="Enter amount (min 10.00 USDT)" required />
+            <div style="display:flex;gap:8px;margin-top:6px;">
+              <button type="button" class="flat-link" data-fill="10">Min (10 USDT)</button>
+              <button type="button" class="flat-link" data-fill="${state.me.available_balance}">Max (${formatUsdt(state.me.available_balance)} USDT)</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="withdraw-network">Network</label>
+            <select id="withdraw-network" required>
+              <option value="TRC20">USDT (TRC-20) - Tron Network</option>
+              <option value="TON">USDT (TON) - Telegram Open Network</option>
+              <option value="BEP20">USDT (BEP-20) - BNB Smart Chain</option>
+            </select>
+          </div>
+          <div class="field form-full">
+            <label for="withdraw-wallet">USDT Wallet Address</label>
+            <input id="withdraw-wallet" type="text" required minlength="15" maxlength="120" placeholder="Paste your USDT wallet address..." />
+          </div>
+        </div>
+        <div class="action-bar">
+          <button type="submit" class="primary-btn" style="background:#26a17b;color:#fff;padding:12px 24px;font-size:13px;">Submit Withdrawal Request →</button>
+        </div>
+      </form>
+    ` : `
+      <div class="empty-state" style="padding:24px;">
+        <p style="margin:0;color:#92400e;font-weight:600;">The withdrawal form is currently locked. Complete your 10 lifetime friend invites above to unlock instant withdrawal requests.</p>
+      </div>
+    `}
+  </div>
+
+  <div class="paper table-wrap" style="margin-top:20px;">
+    <h3>Withdrawal History</h3>
+    ${state.me.withdrawals?.length ? `
+      <table class="compact-table">
+        <thead><tr><th>Date</th><th>Amount</th><th>Network</th><th>Wallet Address</th><th>Status</th><th>Admin Note / TX</th></tr></thead>
+        <tbody>
+          ${state.me.withdrawals.map(w => `
+            <tr>
+              <td>${timeLabel(w.created_at)}</td>
+              <td><strong style="color:#059669;">${formatUsdt(w.amount)} USDT</strong></td>
+              <td><span class="pill active">${safe(w.network)}</span></td>
+              <td><code>${safe(w.wallet_address.slice(0,8))}...${safe(w.wallet_address.slice(-6))}</code></td>
+              <td>${w.status === 'pending' ? '<span class="pill pending">⏳ Pending</span>' : w.status === 'completed' ? '<span class="pill approved">✓ Paid</span>' : '<span class="pill rejected">✕ Rejected</span>'}</td>
+              <td>${safe(w.admin_note || '—')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : '<div class="empty-state">No withdrawal requests submitted yet.</div>'}
+  </div>`;
+}
+
 function detailView() {
   const t = state.selectedCampaign;
   if (!t) { state.view='tasks'; return tasksView(); }
@@ -198,6 +328,35 @@ function adminReviewView() {
   ${[r.answer1,r.answer2,r.answer3].map((answer,i)=>`<div class="review-label">Question ${i+1}</div><div class="review-answer">${safe(answer)}</div>`).join('')}
   ${r.status === 'pending' ? `<div class="review-actions"><input id="note-${r.id}" maxlength="400" placeholder="Optional approval note; rejection reason required" aria-label="Review note" /><button type="button" class="primary-btn" style="background:#26a17b;" data-review-id="${safe(r.id)}" data-review-as="approved">Approve & Pay ${formatUsdt(r.reward_points)} USDT</button><button type="button" class="danger-btn" data-review-id="${safe(r.id)}" data-review-as="rejected">Reject</button></div>` : `<div class="help-text">Review note: ${safe(r.review_note || 'None')}</div>`}</div>`).join('');
 }
+function adminWithdrawalView() {
+  if (!state.adminWithdrawals.length) return '<div class="empty-state">No withdrawal requests submitted yet.</div>';
+  return `<div class="paper table-wrap"><h3>USDT Withdrawal Requests</h3>
+    <table class="compact-table">
+      <thead><tr><th>Tester</th><th>Lifetime Invites</th><th>Amount</th><th>Network & Wallet</th><th>Date</th><th>Status</th><th>Action / TX Note</th></tr></thead>
+      <tbody>
+        ${state.adminWithdrawals.map(w => `
+          <tr>
+            <td><strong>${safe(w.tester_name || 'Tester')}</strong><div class="help-text">${w.username ? '@' + safe(w.username) : safe(w.user_id)}</div></td>
+            <td><span class="pill ${w.lifetime_invites >= 10 ? 'approved' : 'rejected'}">${w.lifetime_invites} invites</span></td>
+            <td><strong style="color:#059669;font-size:13px;">${formatUsdt(w.amount)} USDT</strong></td>
+            <td><span class="pill active">${safe(w.network)}</span><div style="font-size:11px;word-break:break-all;margin-top:4px;"><code>${safe(w.wallet_address)}</code></div></td>
+            <td>${timeLabel(w.created_at)}</td>
+            <td>${statusLabel(w.status)}</td>
+            <td>
+              ${w.status === 'pending' ? `
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                  <input id="w-note-${w.id}" placeholder="TX Hash or rejection reason" style="padding:6px 8px;font-size:11px;min-width:140px;" />
+                  <button type="button" class="primary-btn" style="background:#26a17b;padding:6px 12px;font-size:11px;" data-w-id="${safe(w.id)}" data-w-as="completed">Mark Paid</button>
+                  <button type="button" class="danger-btn" style="padding:6px 10px;font-size:11px;" data-w-id="${safe(w.id)}" data-w-as="rejected">Reject</button>
+                </div>
+              ` : `<span class="help-text">${safe(w.admin_note || 'Processed')}</span>`}
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
 function adminAnalyticsView() {
   const a = state.analytics || {overall:{},campaigns:[],flagged:0,open_appeals:0};
   const n = a.overall || {};
@@ -220,10 +379,11 @@ function adminAppealsView() {
 function adminView() {
   if (!state.me.user.admin) { state.view='home';return homeView(); }
   const pending=state.reviews.filter(r=>r.status==='pending').length;
+  const pendingWithdrawals=state.adminWithdrawals.filter(w=>w.status==='pending').length;
   return `${pageHead('Admin Studio', 'Manage client testing campaigns, review tester feedback, and analyze metrics.')}
-    <div class="stats-grid"><div class="stat"><div class="stat-icon">▦</div><div class="stat-number">${state.adminCampaigns.length}</div><div class="stat-label">Active Campaigns</div></div><div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">${pending}</div><div class="stat-label">Awaiting Review</div></div><div class="stat"><div class="stat-icon orange" style="background:#e6f8f2;color:#13795b;">✓</div><div class="stat-number">${state.reviews.filter(r=>r.status==='approved').length}</div><div class="stat-label">Approved & Paid Reports</div></div></div>
-    <div class="admin-tabs"><button class="admin-tab ${state.adminTab==='campaigns'?'active':''}" data-admin-tab="campaigns">Campaigns</button><button class="admin-tab ${state.adminTab==='reviews'?'active':''}" data-admin-tab="reviews">Feedback Reviews (${pending})</button><button class="admin-tab ${state.adminTab==='analytics'?'active':''}" data-admin-tab="analytics">Analytics & Reports</button><button class="admin-tab ${state.adminTab==='appeals'?'active':''}" data-admin-tab="appeals">Appeals (${state.appeals.filter(a=>a.status==='open').length})</button></div>
-    ${state.adminTab==='campaigns'?adminCampaignView():state.adminTab==='reviews'?adminReviewView():state.adminTab==='analytics'?adminAnalyticsView():adminAppealsView()}`;
+    <div class="stats-grid"><div class="stat"><div class="stat-icon">▦</div><div class="stat-number">${state.adminCampaigns.length}</div><div class="stat-label">Active Campaigns</div></div><div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">${pending}</div><div class="stat-label">Awaiting Review</div></div><div class="stat"><div class="stat-icon orange" style="background:#e6f8f2;color:#13795b;">₮</div><div class="stat-number">${pendingWithdrawals}</div><div class="stat-label">Pending Withdrawals</div></div></div>
+    <div class="admin-tabs"><button class="admin-tab ${state.adminTab==='campaigns'?'active':''}" data-admin-tab="campaigns">Campaigns</button><button class="admin-tab ${state.adminTab==='reviews'?'active':''}" data-admin-tab="reviews">Feedback Reviews (${pending})</button><button class="admin-tab ${state.adminTab==='withdrawals'?'active':''}" data-admin-tab="withdrawals">Withdrawals (${pendingWithdrawals})</button><button class="admin-tab ${state.adminTab==='analytics'?'active':''}" data-admin-tab="analytics">Analytics & Reports</button><button class="admin-tab ${state.adminTab==='appeals'?'active':''}" data-admin-tab="appeals">Appeals (${state.appeals.filter(a=>a.status==='open').length})</button></div>
+    ${state.adminTab==='campaigns'?adminCampaignView():state.adminTab==='reviews'?adminReviewView():state.adminTab==='withdrawals'?adminWithdrawalView():state.adminTab==='analytics'?adminAnalyticsView():adminAppealsView()}`;
 }
 function appealView() {
   const item=state.me.activity.find(r=>r.id===state.appealFor&&r.status==='rejected'&&!r.appeal_status);
@@ -232,15 +392,15 @@ function appealView() {
 }
 function render() {
   if (!state.me) return;
-  const labels={home:'Dashboard',tasks:'Available Tasks',activity:'Earnings & History',admin:'Admin Studio',detail:'Task Details',appeal:'Appeal Report'};
+  const labels={home:'Dashboard',tasks:'Available Tasks',activity:'Earnings & History',withdraw:'Withdraw USDT',admin:'Admin Studio',detail:'Task Details',appeal:'Appeal Report'};
   const page=labels[state.view] || 'Dashboard';
   $('#breadcrumb').textContent=`WORKSPACE / ${page.toUpperCase()}`;
   $('#page-label').textContent=state.view==='home' ? `Welcome, ${state.me.user.first_name}` : page;
-  $('#header-points').textContent=formatUsdt(state.me.points);
+  $('#header-points').textContent=formatUsdt(state.me.available_balance ?? state.me.points);
   $('#avatar').textContent=state.me.user.first_name.charAt(0).toUpperCase();
   document.querySelectorAll('.admin-nav').forEach(el=>el.classList.toggle('hidden',!state.me.user.admin));
-  document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===state.view||(state.view==='detail'&&el.dataset.nav==='tasks')));
-  const views={home:homeView,tasks:tasksView,activity:activityView,detail:detailView,admin:adminView,appeal:appealView};
+  document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===state.view||(state.view==='detail'&&el.dataset.nav==='tasks')||(state.view==='withdraw'&&el.dataset.nav==='activity')));
+  const views={home:homeView,tasks:tasksView,activity:activityView,withdraw:withdrawView,detail:detailView,admin:adminView,appeal:appealView};
   $('#app-view').innerHTML=(views[state.view]||homeView)();
 }
 function navigate(view) { if (view==='admin' && !state.me.user.admin) return; state.view=view; render(); window.scrollTo({top:0,behavior:'instant'}); }
@@ -281,6 +441,30 @@ document.addEventListener('click', async (e)=>{
   if(button.dataset.nav){navigate(button.dataset.nav);return;}
   if(button.dataset.open){openTest(button.dataset.open);return;}
   if(button.dataset.launch){launchLink(button.dataset.launch);return;}
+  if(button.dataset.fill){
+    const input = $('#withdraw-amount');
+    if (input) input.value = button.dataset.fill;
+    return;
+  }
+  if(button.id === 'copy-ref-btn'){
+    const input = $('#ref-link-input');
+    if (input) {
+      input.select();
+      navigator.clipboard?.writeText(input.value);
+      toast('Invite link copied to clipboard!');
+    }
+    return;
+  }
+  if(button.id === 'share-ref-btn'){
+    const link = `https://t.me/taskkitio_bot?start=ref_${state.me.user.id}`;
+    const text = `Join me on TaskKit and earn real USDT by testing apps & games! 💸`;
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+    try {
+      if (tg?.openTelegramLink) tg.openTelegramLink(shareUrl);
+      else window.open(shareUrl, '_blank');
+    } catch { window.open(shareUrl, '_blank'); }
+    return;
+  }
   if(button.dataset.exportId){await downloadCampaignCsv(button.dataset.exportId,button.dataset.exportScope || 'approved');return;}
   if(button.dataset.appealFor){state.appealFor=button.dataset.appealFor;state.view='appeal';render();return;}
   if(button.dataset.answerAppeal){const id=button.dataset.answerAppeal,reply=$(`#appeal-reply-${id}`)?.value||'';await mutate(`admin/appeals/${id}/answer`,{reply},'Reply saved and shown to tester.');return;}
@@ -296,6 +480,12 @@ document.addEventListener('click', async (e)=>{
     if(decision==='rejected'&&note.length<8){toast('Enter a clear rejection reason (at least 8 characters).',true);return;}
     await mutate(`admin/submissions/${id}/review`,{decision,note},`Report ${decision}.`);return;
   }
+  if(button.dataset.wId){
+    const id=button.dataset.wId, decision=button.dataset.wAs;
+    const note=document.getElementById(`w-note-${id}`)?.value.trim()||'';
+    if(decision==='rejected'&&note.length<5){toast('Enter a rejection reason for the user.',true);return;}
+    await mutate(`admin/withdrawals/${id}/review`,{decision,note},`Withdrawal ${decision}.`);return;
+  }
 });
 document.addEventListener('submit',async(e)=>{
   if(e.target.id==='feedback-form'){
@@ -308,6 +498,15 @@ document.addEventListener('submit',async(e)=>{
   }
   if(e.target.id==='appeal-form'){
     e.preventDefault();const saved=await mutate(`submissions/${state.appealFor}/appeal`,{reason:$('#appeal-reason').value},'Your appeal has been sent.');if(saved){state.view='activity';render();}return;
+  }
+  if(e.target.id==='withdraw-form'){
+    e.preventDefault();
+    const amount = Number($('#withdraw-amount').value);
+    const network = $('#withdraw-network').value;
+    const wallet_address = $('#withdraw-wallet').value.trim();
+    const ok = await mutate('withdrawals', { amount, network, wallet_address }, 'Withdrawal request submitted! Processing time: 24–48 hours.');
+    if (ok) { state.view = 'withdraw'; render(); }
+    return;
   }
   if(e.target.id==='campaign-form'){
     e.preventDefault();
@@ -331,6 +530,10 @@ async function boot() {
     if(!state.localKey && !tg?.initData){
       $('#app-view').innerHTML='<div class="empty-state"><h2>Open TaskKit inside Telegram</h2><p>This application is a Telegram Mini App and requires a signed Telegram session.</p><div style="margin-top:20px"><a href="https://t.me/taskkitio_bot" class="primary-btn" style="display:inline-block;text-decoration:none;padding:12px 24px;color:#fff;background:#2563eb;border-radius:8px;font-weight:600;">Open @taskkitio_bot in Telegram ↗</a></div></div>';
       return;
+    }
+    // Track referral deep link if launched via startapp=ref_...
+    if (tg?.initDataUnsafe?.start_param) {
+      void api('referrals/track', { method: 'POST', body: { ref: tg.initDataUnsafe.start_param } }).catch(() => {});
     }
     await refresh();
   }catch(error){

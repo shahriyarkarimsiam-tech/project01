@@ -197,4 +197,100 @@ test('Quality warnings, appeals, analytics and CSV report are protected and work
   assert.ok(internalCsv.includes('rejected')&&internalCsv.includes('approved')); 
 });
 
+test('Referral tracking (10 lifetime invites requirement) and USDT withdrawals flow', async () => {
+  const key = (await (await fetch(`${base}/__local_session`)).json()).devKey;
+
+  // 1. Initial state: tester 10001 has 37 USDT from earlier test, 0 invites
+  const meInitial = await request('me', '10001', undefined, key);
+  assert.equal(meInitial.status, 200);
+  assert.equal(meInitial.body.lifetime_invites, 0);
+  assert.equal(meInitial.body.can_withdraw, false);
+  assert.equal(meInitial.body.invites_needed, 10);
+
+  // 2. Withdrawal without 10 invites fails with 403
+  const prematureWithdraw = await request('withdrawals', '10001', {
+    amount: 10, wallet_address: 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', network: 'TRC20'
+  }, key);
+  assert.equal(prematureWithdraw.status, 403);
+  assert.match(prematureWithdraw.body.message, /10 lifetime invited friends/);
+
+  // 3. Self-referral is rejected
+  const selfRef = await request('referrals/track', '10001', { inviter_id: '10001' }, key);
+  assert.equal(selfRef.status, 200);
+  assert.equal(selfRef.body.tracked, false, 'cannot refer self');
+
+  // 4. Invite 9 friends (10001 -> friends 30001..30009)
+  for (let i = 1; i <= 9; i++) {
+    const friendId = `3000${i}`;
+    const track = await request('referrals/track', friendId, { inviter_id: '10001' }, key);
+    assert.equal(track.status, 200);
+    assert.equal(track.body.tracked, true);
+  }
+
+  // Check state with 9 invites
+  const meNine = await request('me', '10001', undefined, key);
+  assert.equal(meNine.body.lifetime_invites, 9);
+  assert.equal(meNine.body.can_withdraw, false);
+  assert.equal(meNine.body.invites_needed, 1);
+
+  // Duplicate referral from existing friend does not increase count
+  const dupRef = await request('referrals/track', '30001', { inviter_id: '10001' }, key);
+  assert.equal(dupRef.body.tracked, false, 'cannot refer same user twice');
+
+  // 5. Invite the 10th friend (friend 30010)
+  const tenth = await request('referrals/track', '30010', { inviter_id: '10001' }, key);
+  assert.equal(tenth.body.tracked, true);
+
+  // Check state with 10 invites: UNLOCKED!
+  const meTen = await request('me', '10001', undefined, key);
+  assert.equal(meTen.body.lifetime_invites, 10);
+  assert.equal(meTen.body.can_withdraw, true, '10 invites unlocks withdrawals');
+  assert.equal(meTen.body.invites_needed, 0);
+
+  // 6. Test amount < 10 USDT fails
+  const underMin = await request('withdrawals', '10001', {
+    amount: 5, wallet_address: 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', network: 'TRC20'
+  }, key);
+  assert.equal(underMin.status, 400);
+  assert.match(underMin.body.message, /Minimum withdrawal/);
+
+  // 7. Test amount > available balance fails
+  const overBal = await request('withdrawals', '10001', {
+    amount: 500, wallet_address: 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', network: 'TRC20'
+  }, key);
+  assert.equal(overBal.status, 400);
+  assert.match(overBal.body.message, /Insufficient available balance/);
+
+  // 8. Successful withdrawal of 10 USDT
+  const successWithdraw = await request('withdrawals', '10001', {
+    amount: 10, wallet_address: 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', network: 'TRC20'
+  }, key);
+  assert.equal(successWithdraw.status, 201);
+  assert.equal(successWithdraw.body.status, 'pending');
+  const withdrawId = successWithdraw.body.id;
+
+  // Available balance should now be 37 - 10 = 27 USDT
+  const meAfterReq = await request('me', '10001', undefined, key);
+  assert.equal(meAfterReq.body.available_balance, 27);
+
+  // 9. Admin views withdrawals
+  const adminList = await request('admin/withdrawals', '90001', undefined, key);
+  assert.equal(adminList.status, 200);
+  const found = adminList.body.withdrawals.find(w => w.id === withdrawId);
+  assert.ok(found);
+  assert.equal(found.lifetime_invites, 10);
+
+  // 10. Admin completes the withdrawal
+  const completed = await request(`admin/withdrawals/${withdrawId}/review`, '90001', {
+    decision: 'completed', note: 'TX: 0x9a8f7e6d5c4b3a2'
+  }, key);
+  assert.equal(completed.status, 200);
+
+  // 11. Lifetime unlock test: for second withdrawal, user does NOT need more invites!
+  const secondWithdraw = await request('withdrawals', '10001', {
+    amount: 15, wallet_address: 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', network: 'TRC20'
+  }, key);
+  assert.equal(secondWithdraw.status, 201, '2nd withdrawal succeeds without needing more invites');
+});
+
 test.after(() => { server.kill('SIGTERM');rmSync(temp,{recursive:true,force:true}); });

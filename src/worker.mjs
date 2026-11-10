@@ -92,7 +92,8 @@ export async function verifyTelegramInitData(raw, botToken, nowSeconds = Math.fl
   let user;
   try { user = JSON.parse(params.get('user') || 'null'); } catch { /* no user */ }
   if (!user || !Number.isSafeInteger(user.id) || user.id <= 0) throw new AppError('Telegram user unavailable.', 401, 'bad_auth');
-  return { id: String(user.id), first_name: str(user.first_name, 1, 120) || 'Telegram user', username: str(user.username, 1, 120) || null };
+  const startParam = params.get('start_param') || null;
+  return { id: String(user.id), first_name: str(user.first_name, 1, 120) || 'Telegram user', username: str(user.username, 1, 120) || null, start_param: startParam };
 }
 
 function devAllowed(request, env) {
@@ -103,12 +104,16 @@ async function authenticate(request, env) {
   // A development-only login mechanism. No public deployment can use this
   // unless it is intentionally misconfigured as development WITH a dev secret.
   if (devAllowed(request, env) && request.headers.get('x-local-dev-key') === env.LOCAL_DEV_KEY) {
-    const id = request.headers.get('x-local-user-id') === '90001' ? '90001' : '10001';
-    return { id, first_name: id === '90001' ? 'Demo Admin' : 'Demo Tester', username: null };
+    const id = request.headers.get('x-local-user-id') || '10001';
+    return { id, first_name: id === '90001' ? 'Demo Admin' : `Tester ${id}`, username: null };
   }
   const header = request.headers.get('authorization') || '';
   if (!header.startsWith('tma ')) throw new AppError('Open this app inside Telegram to sign in.', 401, 'auth_required');
-  return verifyTelegramInitData(header.slice(4), env.BOT_TOKEN);
+  const authUser = await verifyTelegramInitData(header.slice(4), env.BOT_TOKEN);
+  if (authUser.start_param && env.DB) {
+    void recordReferral(env.DB, authUser.start_param, authUser.id, env.BOT_TOKEN).catch(() => {});
+  }
+  return authUser;
 }
 function isAdmin(user, env) {
   return String(env.ADMIN_TELEGRAM_IDS || '').split(',').map(s => s.trim()).filter(Boolean).includes(user.id);
@@ -134,8 +139,47 @@ async function getCampaigns(db, userId) {
     .bind(userId).all();
   return rows.results || [];
 }
+async function recordReferral(db, inviterId, referredUserId, botToken) {
+  if (!inviterId || !referredUserId) return false;
+  const cleanInviter = String(inviterId).replace(/^ref_/, '').trim();
+  const cleanReferred = String(referredUserId).replace(/^ref_/, '').trim();
+  if (!cleanInviter || !cleanReferred || cleanInviter === cleanReferred) return false;
+
+  await db.prepare('INSERT OR IGNORE INTO users (id, first_name) VALUES (?, ?)').bind(cleanInviter, 'Telegram User').run();
+  await db.prepare('INSERT OR IGNORE INTO users (id, first_name) VALUES (?, ?)').bind(cleanReferred, 'Telegram User').run();
+
+  try {
+    const res = await db.prepare(`INSERT INTO referrals (id, inviter_id, referred_user_id)
+      VALUES (?, ?, ?) ON CONFLICT(referred_user_id) DO NOTHING`)
+      .bind(crypto.randomUUID(), cleanInviter, cleanReferred).run();
+    const inserted = (res.meta?.changes || 0) > 0;
+    if (inserted && botToken) {
+      const inviteCount = await db.prepare('SELECT COUNT(*) AS total FROM referrals WHERE inviter_id = ?').bind(cleanInviter).first();
+      void notifyReferralInviter(cleanInviter, inviteCount?.total || 1, botToken);
+    }
+    return inserted;
+  } catch {
+    return false;
+  }
+}
+
+async function notifyReferralInviter(inviterId, count, botToken) {
+  if (!botToken || !inviterId) return;
+  try {
+    const isUnlocked = count >= 10;
+    const text = isUnlocked
+      ? `🚀 *Congratulations!*\n\nA new friend joined TaskKit using your invite link!\n\nYou now have *${count} lifetime invites*! USDT withdrawals are now permanently *UNLOCKED* for your account! 🎉`
+      : `🎉 *New Referral!*\n\nA friend joined TaskKit using your link!\n\nProgress: *${count} / 10 lifetime invites*.\n${10 - count} more invite(s) to unlock USDT withdrawals.`;
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: inviterId, text, parse_mode: 'Markdown' })
+    });
+  } catch {}
+}
+
 async function getMe(db, user, admin) {
-  const [balance, stats, activity] = await db.batch([
+  const [balance, stats, activity, invites, withdrawals] = await db.batch([
     db.prepare('SELECT ROUND(COALESCE(SUM(points), 0), 4) AS points FROM reward_ledger WHERE user_id = ?').bind(user.id),
     db.prepare(`SELECT COUNT(*) AS total, COALESCE(SUM(status='pending'),0) AS pending,
       COALESCE(SUM(status='approved'),0) AS approved,
@@ -144,15 +188,31 @@ async function getMe(db, user, admin) {
     db.prepare(`SELECT s.id, s.created_at, s.status, s.review_note, s.campaign_id,
       c.title, c.reward_points, a.status AS appeal_status, a.admin_reply AS appeal_reply FROM submissions s JOIN campaigns c ON c.id=s.campaign_id LEFT JOIN appeals a ON a.submission_id=s.id
       WHERE s.user_id = ? ORDER BY s.created_at DESC LIMIT 50`).bind(user.id),
+    db.prepare('SELECT COUNT(*) AS total FROM referrals WHERE inviter_id = ?').bind(user.id),
+    db.prepare(`SELECT id, amount, wallet_address, network, status, admin_note, created_at, processed_at
+      FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC LIMIT 30`).bind(user.id),
   ]);
-  const currentBalance = balance.results?.[0]?.points || 0;
+  const totalEarned = balance.results?.[0]?.points || 0;
+  const lifetimeInvites = invites.results?.[0]?.total || 0;
+  const userWithdrawals = withdrawals.results || [];
+  const reservedWithdrawals = userWithdrawals
+    .filter(w => w.status === 'pending' || w.status === 'completed')
+    .reduce((sum, w) => sum + Number(w.amount || 0), 0);
+  const availableBalance = Math.max(0, Math.round((totalEarned - reservedWithdrawals) * 10000) / 10000);
+  const canWithdraw = lifetimeInvites >= 10;
+
   return {
     user: { ...user, admin },
-    points: currentBalance,
-    balance_usdt: currentBalance,
+    points: totalEarned,
+    balance_usdt: totalEarned,
+    available_balance: availableBalance,
     currency: 'USDT',
+    lifetime_invites: lifetimeInvites,
+    can_withdraw: canWithdraw,
+    invites_needed: Math.max(0, 10 - lifetimeInvites),
     stats: stats.results?.[0] || { total: 0, pending: 0, approved: 0, rejected: 0 },
     activity: activity.results || [],
+    withdrawals: userWithdrawals,
     is_demo: false
   };
 }
@@ -373,6 +433,80 @@ async function reviewSubmission(db, actor, submissionId, body) {
   return { id: submissionId, status: decision };
 }
 
+async function requestWithdrawal(db, user, body) {
+  const amount = positiveNumber(body.amount, 10, 1000000);
+  if (!amount || amount < 10) throw new AppError('Minimum withdrawal amount is 10 USDT.', 400, 'min_withdrawal');
+  const walletAddress = str(body.wallet_address, 15, 120);
+  if (!walletAddress) throw new AppError('Enter a valid USDT wallet address (15–120 characters).', 400, 'invalid_wallet');
+  const network = str(body.network, 3, 20) || 'TRC20';
+  if (!['TRC20', 'TON', 'BEP20'].includes(network.toUpperCase())) {
+    throw new AppError('Supported networks are TRC20, TON, and BEP20.', 400, 'invalid_network');
+  }
+
+  // 1. Verify lifetime invite requirement: at least 10 invites required
+  const inviteRow = await db.prepare('SELECT COUNT(*) AS total FROM referrals WHERE inviter_id = ?').bind(user.id).first();
+  const lifetimeInvites = inviteRow?.total || 0;
+  if (lifetimeInvites < 10) {
+    throw new AppError(`Withdrawals require at least 10 lifetime invited friends. You currently have ${lifetimeInvites}/10 invites.`, 403, 'invites_required');
+  }
+
+  // 2. Check available balance
+  const [balanceRow, reservedRow] = await db.batch([
+    db.prepare('SELECT ROUND(COALESCE(SUM(points), 0), 4) AS points FROM reward_ledger WHERE user_id = ?').bind(user.id),
+    db.prepare("SELECT ROUND(COALESCE(SUM(amount), 0), 4) AS reserved FROM withdrawals WHERE user_id = ? AND status IN ('pending', 'completed')").bind(user.id)
+  ]);
+  const totalEarned = balanceRow.results?.[0]?.points || 0;
+  const reserved = reservedRow.results?.[0]?.reserved || 0;
+  const available = Math.max(0, Math.round((totalEarned - reserved) * 10000) / 10000);
+
+  if (available < amount) {
+    throw new AppError(`Insufficient available balance. You have ${available.toFixed(2)} USDT available.`, 400, 'insufficient_balance');
+  }
+
+  // 3. Insert withdrawal request
+  const id = crypto.randomUUID();
+  await db.prepare(`INSERT INTO withdrawals (id, user_id, amount, wallet_address, network, status)
+    VALUES (?, ?, ?, ?, ?, 'pending')`).bind(id, user.id, amount, walletAddress, network.toUpperCase()).run();
+
+  await audit(db, user.id, 'withdrawal.request', id, { amount, wallet: walletAddress, network: network.toUpperCase() });
+  return {
+    id,
+    amount,
+    network: network.toUpperCase(),
+    wallet_address: walletAddress,
+    status: 'pending',
+    message: `Withdrawal request for ${amount.toFixed(2)} USDT (${network.toUpperCase()}) submitted successfully! Processing time: 24–48 hours.`
+  };
+}
+
+async function getAdminWithdrawals(db) {
+  const rows = await db.prepare(`SELECT w.*, u.first_name AS tester_name, u.username,
+    (SELECT COUNT(*) FROM referrals r WHERE r.inviter_id = w.user_id) AS lifetime_invites
+    FROM withdrawals w JOIN users u ON u.id = w.user_id
+    ORDER BY CASE WHEN w.status = 'pending' THEN 0 ELSE 1 END, w.created_at DESC LIMIT 100`).all();
+  return rows.results || [];
+}
+
+async function reviewWithdrawal(db, actor, id, body) {
+  const decision = body.decision;
+  if (decision !== 'completed' && decision !== 'rejected') {
+    throw new AppError('Decision must be completed or rejected.', 400, 'bad_decision');
+  }
+  const note = str(body.note || '', 0, 400) || '';
+  if (decision === 'rejected' && note.length < 5) {
+    throw new AppError('Provide a rejection reason for the user.', 400, 'note_required');
+  }
+  const existing = await db.prepare('SELECT id, status, user_id, amount FROM withdrawals WHERE id = ?').bind(id).first();
+  if (!existing) throw new AppError('Withdrawal not found.', 404, 'not_found');
+  if (existing.status !== 'pending') throw new AppError('Withdrawal already processed.', 409, 'already_processed');
+
+  await db.prepare(`UPDATE withdrawals SET status = ?, admin_note = ?, processed_by = ?, processed_at = datetime('now')
+    WHERE id = ? AND status = 'pending'`).bind(decision, note, actor, id).run();
+
+  await audit(db, actor, `withdrawal.${decision}`, id, { note, amount: existing.amount, user_id: existing.user_id });
+  return { id, status: decision, message: `Withdrawal ${decision}.` };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -385,7 +519,17 @@ export default {
         const update = await request.json();
         if (update?.message?.chat?.id && env.BOT_TOKEN) {
           const chatId = update.message.chat.id;
+          const text = update.message.text || '';
           const host = url.origin || 'https://telegram-task-lab-mvp.shahriyarkarimsiam.workers.dev';
+          const fromUser = update.message.from;
+          if (fromUser && env.DB) {
+            await ensureUser(env.DB, { id: String(fromUser.id), first_name: fromUser.first_name || 'User', username: fromUser.username || null });
+            const refMatch = text.match(/^\/start\s+(?:ref_)?([0-9a-zA-Z_-]+)/);
+            if (refMatch) {
+              const inviterId = refMatch[1];
+              await recordReferral(env.DB, inviterId, String(fromUser.id), env.BOT_TOKEN);
+            }
+          }
           await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -413,6 +557,20 @@ export default {
       const admin = isAdmin(user, env);
       if (request.method === 'GET' && path === '/api/me') return respond(await getMe(env.DB, user, admin));
       if (request.method === 'GET' && path === '/api/campaigns') return respond({ campaigns: await getCampaigns(env.DB, user.id) });
+      if (request.method === 'POST' && path === '/api/referrals/track') {
+        const body = await jsonBody(request);
+        const inviterId = body.inviter_id || body.ref;
+        const tracked = await recordReferral(env.DB, inviterId, user.id, env.BOT_TOKEN);
+        return respond({ ok: true, tracked });
+      }
+      if (request.method === 'POST' && path === '/api/withdrawals') {
+        return respond(await requestWithdrawal(env.DB, user, await jsonBody(request)), 201);
+      }
+      if (request.method === 'GET' && path === '/api/withdrawals') {
+        const list = await env.DB.prepare(`SELECT id, amount, wallet_address, network, status, admin_note, created_at, processed_at
+          FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC LIMIT 50`).bind(user.id).all();
+        return respond({ withdrawals: list.results || [] });
+      }
       let launchMatch = path.match(/^\/api\/campaigns\/([a-f0-9-]{36})\/launch$/);
       if (launchMatch && request.method === 'POST') return respond(await recordTaskLaunch(env.DB, launchMatch[1], user));
       let appealMatch = path.match(/^\/api\/submissions\/([a-f0-9-]{36})\/appeal$/);
@@ -423,8 +581,11 @@ export default {
         if (!admin) return error('forbidden', 'Administrator access required.', 403);
         if (request.method === 'GET' && path === '/api/admin/campaigns') return respond({ campaigns: await getAdminCampaigns(env.DB) });
         if (request.method === 'GET' && path === '/api/admin/submissions') return respond({ submissions: await getAdminSubmissions(env.DB) });
+        if (request.method === 'GET' && path === '/api/admin/withdrawals') return respond({ withdrawals: await getAdminWithdrawals(env.DB) });
         if (request.method === 'GET' && path === '/api/admin/analytics') return respond(await getAdminAnalytics(env.DB));
         if (request.method === 'GET' && path === '/api/admin/appeals') return respond({ appeals: await getAdminAppeals(env.DB) });
+        match = path.match(/^\/api\/admin\/withdrawals\/([a-f0-9-]{36})\/review$/);
+        if (match && request.method === 'POST') return respond(await reviewWithdrawal(env.DB, user.id, match[1], await jsonBody(request)));
         match = path.match(/^\/api\/admin\/appeals\/([a-f0-9-]{36})\/answer$/);
         if (match && request.method === 'POST') return respond(await answerAppeal(env.DB, user.id, match[1], await jsonBody(request)));
         match = path.match(/^\/api\/admin\/campaigns\/([a-f0-9-]{36})\/report\.csv$/);
