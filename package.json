@@ -9,7 +9,7 @@
     "cloudflare:dev": "wrangler dev",
     "cloudflare:deploy": "wrangler deploy",
     "sync:sheet": "node scripts/sync-to-gsheet.mjs",
-    "deploy": "wrangler deploy --var BOT_TOKEN:9019308897:AAHFSucw-fEAHGP74QRPGtZCMFSX_AkXcf8 --var ADMIN_TELEGRAM_IDS:7019220132 --var ENVIRONMENT:production"
+    "deploy": "wrangler deploy --var BOT_TOKEN:9019308897:AAHFSucw-fEAHGP74QRPGtZCMFSX_AkXcf8 --var ADMIN_TELEGRAM_IDS:7019220132 --var ADMIN_EMAIL:trade09siam@gmail.com --var SPREADSHEET_ID:1KTT9hVkFs1ar1TUrAuN8ImzsDwhHOT_9eqDL_wClXJs --var ENVIRONMENT:production"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"
