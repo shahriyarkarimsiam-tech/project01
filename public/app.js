@@ -175,7 +175,7 @@ function adminCampaignView() {
   <div class="field form-full"><label for="question1">Feedback Question 1</label><input id="question1" required minlength="10" maxlength="200" placeholder="e.g. Did you encounter any bugs, crashes, or lag during use?" /></div>
   <div class="field form-full"><label for="question2">Feedback Question 2</label><input id="question2" required minlength="10" maxlength="200" placeholder="e.g. How intuitive was the design and navigation?" /></div>
   <div class="field form-full"><label for="question3">Feedback Question 3</label><input id="question3" required minlength="10" maxlength="200" placeholder="e.g. What is the single biggest improvement the team should make?" /></div>
-  <div class="field"><label for="capacity">Target Tester Capacity (e.g. 1000)</label><input id="capacity" type="number" min="1" max="100000" value="1000" required /></div>
+  <div class="field"><label for="capacity">Target Tester Capacity (e.g. 1000)</label><input id="capacity" type="number" min="1" max="1000" value="1000" required /></div>
   <div class="field"><label for="reward-points">Tester Payout per Approved Report (BDT)</label><input id="reward-points" type="number" min="1" max="1000" value="5" required /></div>
   </div><div class="action-bar"><button type="submit" class="primary-btn dark">Create Campaign →</button></div></form></div>`;
 }

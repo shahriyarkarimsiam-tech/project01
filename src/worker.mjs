@@ -385,11 +385,11 @@ export default {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId,
-              text: '👋 *Welcome to TaskKit!*\n\nComplete usability testing tasks and earn points.\n\nTap below to launch the Mini App:',
+              text: '👋 *Welcome to TaskKit!*\n\nTest mobile apps, games, and web services from top companies in Bangladesh and earn real BDT rewards.\n\nTap below to start earning:',
               parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: '🚀 Open TaskKit Mini App', web_app: { url: host } }]
+                  [{ text: '🚀 Open TaskKit (Test & Earn)', web_app: { url: host } }]
                 ]
               }
             })
