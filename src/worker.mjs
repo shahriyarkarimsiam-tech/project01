@@ -20,6 +20,10 @@ function str(value, min = 1, max = 1000) {
   return typeof value === 'string' && value.trim().length >= min && value.trim().length <= max ? value.trim() : null;
 }
 function integer(value, min, max) { return Number.isInteger(value) && value >= min && value <= max ? value : null; }
+function positiveNumber(value, min = 0.001, max = 100000) {
+  const n = Number(value);
+  return !Number.isNaN(n) && Number.isFinite(n) && n >= min && n <= max ? Math.round(n * 10000) / 10000 : null;
+}
 function validHttps(value) {
   try { const u = new URL(value); return u.protocol === 'https:' && !!u.hostname && !u.username && !u.password && u.href.length <= 500 && !['localhost', '127.0.0.1'].includes(u.hostname); }
   catch { return false; }
@@ -132,7 +136,7 @@ async function getCampaigns(db, userId) {
 }
 async function getMe(db, user, admin) {
   const [balance, stats, activity] = await db.batch([
-    db.prepare('SELECT COALESCE(SUM(points), 0) AS points FROM reward_ledger WHERE user_id = ?').bind(user.id),
+    db.prepare('SELECT ROUND(COALESCE(SUM(points), 0), 4) AS points FROM reward_ledger WHERE user_id = ?').bind(user.id),
     db.prepare(`SELECT COUNT(*) AS total, COALESCE(SUM(status='pending'),0) AS pending,
       COALESCE(SUM(status='approved'),0) AS approved,
       COALESCE(SUM(status='rejected'),0) AS rejected
@@ -145,7 +149,8 @@ async function getMe(db, user, admin) {
   return {
     user: { ...user, admin },
     points: currentBalance,
-    balance_bdt: currentBalance,
+    balance_usdt: currentBalance,
+    currency: 'USDT',
     stats: stats.results?.[0] || { total: 0, pending: 0, approved: 0, rejected: 0 },
     activity: activity.results || [],
     is_demo: false
@@ -225,10 +230,10 @@ function campaignData(body) {
   const gameUrl = str(body.game_url, 10, 500);
   const instructions = str(body.instructions, 20, 1200);
   const questions = Array.isArray(body.questions) && body.questions.length === 3 ? body.questions.map(q => str(q, 10, 200)) : [];
-  const capacity = integer(body.capacity, 1, 1000);
-  const rewardPoints = integer(body.reward_points, 1, 1000);
-  if (!title || !description || !gameUrl || !validHttps(gameUrl) || !instructions || questions.length !== 3 || questions.some(q => !q) || !capacity || !rewardPoints) {
-    throw new AppError('Campaign needs a valid HTTPS game URL, title, description, instructions, three questions, capacity and test points.', 400, 'invalid_campaign');
+  const capacity = integer(body.capacity, 1, 100000);
+  const rewardPoints = positiveNumber(body.reward_points, 0.001, 100000);
+  if (!title || !description || !gameUrl || !validHttps(gameUrl) || !instructions || questions.length !== 3 || questions.some(q => !q) || !capacity || rewardPoints === null) {
+    throw new AppError('Campaign needs a valid HTTPS game URL, title, description, instructions, three questions, capacity and USDT reward.', 400, 'invalid_campaign');
   }
   return { title, description, gameUrl, instructions, questions, capacity, rewardPoints };
 }
@@ -264,8 +269,9 @@ async function getAdminAnalytics(db) {
       (SELECT COUNT(*) FROM submissions WHERE status='approved') AS approved,
       (SELECT COUNT(*) FROM submissions WHERE status='rejected') AS rejected,
       (SELECT COUNT(*) FROM submissions WHERE status='pending') AS pending,
-      (SELECT COALESCE(SUM(points),0) FROM reward_ledger) AS total_paid_bdt,
-      (SELECT COALESCE(SUM(points),0) FROM reward_ledger) AS demo_points_issued`),
+      (SELECT ROUND(COALESCE(SUM(points),0), 4) FROM reward_ledger) AS total_paid_usdt,
+      (SELECT ROUND(COALESCE(SUM(points),0), 4) FROM reward_ledger) AS total_paid_bdt,
+      (SELECT ROUND(COALESCE(SUM(points),0), 4) FROM reward_ledger) AS demo_points_issued`),
     db.prepare(`SELECT c.id,c.title,c.status,c.capacity,
       COUNT(s.id) AS submitted,
       COALESCE(SUM(s.status='approved'),0) AS approved,
@@ -373,7 +379,7 @@ export default {
     const path = url.pathname;
     if (!path.startsWith('/api/')) return env.ASSETS ? env.ASSETS.fetch(request) : error('not_found', 'Not found.', 404);
     if (request.method === 'OPTIONS') return error('method_not_allowed', 'Not allowed.', 405);
-    if (request.method === 'GET' && path === '/api/health') return respond({ ok: true, version: '1.0.0', platform: 'TaskKit', reward_type: 'bdt_micro_rewards' });
+    if (request.method === 'GET' && path === '/api/health') return respond({ ok: true, version: '1.0.0', platform: 'TaskKit', currency: 'USDT', reward_type: 'usdt_micro_rewards' });
     if (path === '/api/telegram-webhook' && request.method === 'POST') {
       try {
         const update = await request.json();
@@ -385,11 +391,11 @@ export default {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId,
-              text: '👋 *Welcome to TaskKit!*\n\nTest mobile apps, games, and web services from top companies in Bangladesh and earn real BDT rewards.\n\nTap below to start earning:',
+              text: '👋 *Welcome to TaskKit!*\n\nTest mobile apps, games, and web services and earn real USDT rewards.\n\nTap below to start earning:',
               parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: '🚀 Open TaskKit (Test & Earn)', web_app: { url: host } }]
+                  [{ text: '🚀 Open TaskKit (Test & Earn USDT)', web_app: { url: host } }]
                 ]
               }
             })

@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS campaigns (
   question1 TEXT NOT NULL,
   question2 TEXT NOT NULL,
   question3 TEXT NOT NULL,
-  reward_points INTEGER NOT NULL CHECK(reward_points BETWEEN 1 AND 1000),
-  capacity INTEGER NOT NULL CHECK(capacity BETWEEN 1 AND 1000),
+  reward_points REAL NOT NULL CHECK(reward_points >= 0.001 AND reward_points <= 100000),
+  capacity INTEGER NOT NULL CHECK(capacity >= 1 AND capacity <= 100000),
   status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','active','paused')),
   created_by TEXT NOT NULL REFERENCES users(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS reward_ledger (
   user_id TEXT NOT NULL REFERENCES users(id),
   campaign_id TEXT NOT NULL REFERENCES campaigns(id),
   submission_id TEXT NOT NULL UNIQUE REFERENCES submissions(id),
-  points INTEGER NOT NULL CHECK(points > 0),
+  points REAL NOT NULL CHECK(points > 0),
   description TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

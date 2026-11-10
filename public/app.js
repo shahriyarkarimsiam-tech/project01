@@ -6,13 +6,25 @@ const safe = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '
 const smallText = (value, n=140) => String(value ?? '').length > n ? String(value).slice(0,n-1)+'…' : String(value ?? '');
 const state = { view: 'home', me: null, campaigns: [], adminCampaigns: [], reviews: [], appeals: [], analytics: null, adminTab: 'campaigns', localKey: null, localUser: '10001', selectedCampaign: null, loading: false };
 let toastTimeout;
+
+function formatUsdt(amount) {
+  const n = Number(amount || 0);
+  if (Number.isNaN(n)) return '0.00';
+  if (n % 1 !== 0) {
+    const s = n.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+    const decimals = s.split('.')[1] || '';
+    return decimals.length < 2 ? n.toFixed(2) : s;
+  }
+  return n.toFixed(2);
+}
+
 function toast(message, failed = false) {
   const node = $('#toast'); node.textContent = message; node.className = failed ? 'toast error' : 'toast';
   clearTimeout(toastTimeout); toastTimeout = setTimeout(() => node.classList.add('hidden'), 4200);
 }
 function statusLabel(status, points = 0) {
   if (status === 'pending') return '<span class="pill pending">⏳ Under Review</span>';
-  if (status === 'approved') return `<span class="pill approved">✓ Approved (+৳${points || 5} BDT)</span>`;
+  if (status === 'approved') return `<span class="pill approved">✓ Approved (+${formatUsdt(points)} USDT)</span>`;
   if (status === 'rejected') return '<span class="pill rejected">✕ Rejected</span>';
   return `<span class="pill ${safe(status)}">${safe(status)}</span>`;
 }
@@ -60,29 +72,29 @@ function taskCard(task) {
   } else if (remaining <= 0) {
     actionButton = '<span class="pill draft">Slots Full</span>';
   } else {
-    actionButton = `<button class="primary-btn" data-open="${safe(task.id)}" style="padding:8px 14px;font-size:11px;">Start Task & Earn ৳${task.reward_points} →</button>`;
+    actionButton = `<button class="primary-btn" data-open="${safe(task.id)}" style="padding:8px 14px;font-size:11px;">Start Task & Earn ${formatUsdt(task.reward_points)} USDT →</button>`;
   }
   return `<article class="task-card">
-    <div class="task-top"><span class="task-icon">📱</span><span class="points-tag" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;font-size:12px;font-weight:800;">৳ ${task.reward_points} BDT</span></div>
+    <div class="task-top"><span class="task-icon">📱</span><span class="points-tag" style="background:#e6f8f2;color:#13795b;border:1px solid #a3e6d2;font-size:12px;font-weight:800;">₮ ${formatUsdt(task.reward_points)} USDT</span></div>
     <h3>${safe(task.title)}</h3><p>${safe(smallText(task.description, 175))}</p>
     <div class="task-meta">
       <span>👥 <strong>${doneCount}</strong> completed</span>
       <span>⚡ <strong>${remaining}</strong> / ${task.capacity} slots left</span>
     </div>
     <div class="task-card-footer">
-      <span class="task-slots" style="color:#059669;font-weight:700;">Reward: ৳${task.reward_points} BDT</span>
+      <span class="task-slots" style="color:#13795b;font-weight:700;">Reward: ${formatUsdt(task.reward_points)} USDT</span>
       ${actionButton}
     </div>
   </article>`;
 }
 function activityTable(rows) {
-  if (!rows?.length) return '<div class="empty-state"><h3>No tasks submitted yet</h3><p>Select any available task from the catalog, test the app, and submit your report to earn real BDT rewards.</p></div>';
+  if (!rows?.length) return '<div class="empty-state"><h3>No tasks submitted yet</h3><p>Select any available task from the catalog, test the app, and submit your report to earn real USDT rewards.</p></div>';
   return `<div class="paper table-wrap"><table class="compact-table"><thead><tr><th>Campaign / Task</th><th>Submitted</th><th>Review Status</th><th>Earned</th></tr></thead><tbody>
     ${rows.map(s => {
       let earnedHtml = '—';
-      if (s.status === 'approved') earnedHtml = `<strong style="color:#059669;font-size:13px;">+৳ ${s.reward_points} BDT</strong>`;
-      else if (s.status === 'pending') earnedHtml = `<span style="color:#d97706;font-size:12px;">⏳ ৳ ${s.reward_points} (Pending)</span>`;
-      else earnedHtml = `<span style="color:#9ca3af;font-size:12px;">৳ 0 BDT</span>`;
+      if (s.status === 'approved') earnedHtml = `<strong style="color:#059669;font-size:13px;">+${formatUsdt(s.reward_points)} USDT</strong>`;
+      else if (s.status === 'pending') earnedHtml = `<span style="color:#d97706;font-size:12px;">⏳ ${formatUsdt(s.reward_points)} USDT (Pending)</span>`;
+      else earnedHtml = `<span style="color:#9ca3af;font-size:12px;">0.00 USDT</span>`;
       return `<tr>
         <td>
           <div class="mini-title">${safe(s.title)}</div>
@@ -100,12 +112,12 @@ function activityTable(rows) {
 function homeView() {
   const n = state.me.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
   const available = state.campaigns.filter(c => !c.my_status && c.capacity > (c.reserved || 0));
-  return `<section class="hero"><div class="hero-content"><div class="hero-kicker">৳ VERIFIED MOBILE TESTING & MICRO-REWARDS</div><h1>Test Client Apps.<br/>Earn Real BDT Rewards.</h1>
-    <p>Help top tech startups and companies in Bangladesh test their apps and websites. Complete structured usability tests, share honest feedback reports, and earn BDT for every approved test.</p>
+  return `<section class="hero"><div class="hero-content"><div class="hero-kicker">₮ VERIFIED TESTING & USDT REWARDS</div><h1>Test Client Apps.<br/>Earn Real USDT Rewards.</h1>
+    <p>Help top tech startups and global companies test their apps, games, and web services. Complete structured usability tests, share honest feedback reports, and earn USDT for every approved test.</p>
     <button class="primary-btn" data-nav="tasks">Browse Available Tasks <span>↗</span></button></div><div class="hero-shape" aria-hidden="true"></div></section>
     <div class="stats-grid cols-4">
-      <div class="stat"><div class="stat-icon" style="background:#ecfdf5;color:#059669;font-weight:800;">৳</div><div class="stat-number">৳ ${state.me.points}</div><div class="stat-label">Total Real Earnings (BDT)</div></div>
-      <div class="stat"><div class="stat-icon orange" style="background:#ecfdf5;color:#059669;">✓</div><div class="stat-number">${n.approved || 0}</div><div class="stat-label">Tasks Completed & Paid</div></div>
+      <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(state.me.points)} USDT</div><div class="stat-label">Total Real Earnings (USDT)</div></div>
+      <div class="stat"><div class="stat-icon orange" style="background:#e6f8f2;color:#13795b;">✓</div><div class="stat-number">${n.approved || 0}</div><div class="stat-label">Tasks Completed & Paid</div></div>
       <div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">${n.pending || 0}</div><div class="stat-label">Reports Under Review</div></div>
       <div class="stat"><div class="stat-icon orange">▦</div><div class="stat-number">${available.length}</div><div class="stat-label">Tasks Available to Earn</div></div>
     </div>
@@ -113,23 +125,23 @@ function homeView() {
     ${available.length ? `<div class="task-grid">${available.slice(0,4).map(taskCard).join('')}</div>` : '<div class="empty-state"><h3>All Tasks Currently Filled</h3><p>You have tested all available apps or slots are reserved. New client campaigns are added regularly!</p></div>'}
     ${pageHead('Recent Activity & Submissions', 'Your recent test reports and payout status.', '<button class="section-link" data-nav="activity">Full history →</button>')}
     ${activityTable(state.me.activity.slice(0,5))}
-    <div class="helper-note" style="margin-top:20px;border-color:#10b981;background:#ecfdf5;color:#065f46;"><strong>Guaranteed Micro-Rewards:</strong> Every approved test report earns real BDT. Payouts are verified against honest, thoughtful feedback. Follow all instructions carefully to guarantee approval.</div>`;
+    <div class="helper-note" style="margin-top:20px;border-color:#26a17b;background:#e6f8f2;color:#0f5132;"><strong>Guaranteed USDT Rewards:</strong> Every approved test report earns real USDT. Payouts are verified against honest, thoughtful feedback. Follow all instructions carefully to guarantee approval.</div>`;
 }
 function tasksView() {
-  return `${pageHead('Available Testing Tasks', 'Each campaign has a limited user quota. Test according to instructions and submit your report to earn BDT.')}
-    ${state.campaigns.length ? `<div class="task-grid">${state.campaigns.map(taskCard).join('')}</div>` : '<div class="empty-state"><h3>No active tasks available right now</h3><p>Check back shortly as new advertiser and startup testing campaigns go live.</p></div>'}
-    <div class="helper-note" style="margin-top:20px;border-color:#3b82f6;background:#eff6ff;color:#1e40af;"><strong>How It Works:</strong> 1. Click 'Start Task'. 2. Open the destination app/link and test it thoroughly. 3. Return to submit your structured feedback. 4. Once reviewed and approved, ৳5 BDT is credited to your balance.</div>`;
+  return `${pageHead('Available Testing Tasks', 'Each campaign has a limited user quota. Test according to instructions and submit your report to earn USDT.')}
+    ${state.campaigns.length ? `<div class="task-grid">${state.campaigns.map(taskCard).join('')}</div>` : '<div class="empty-state"><h3>No active tasks available right now</h3><p>Check back shortly as new client testing campaigns go live.</p></div>'}
+    <div class="helper-note" style="margin-top:20px;border-color:#3b82f6;background:#eff6ff;color:#1e40af;"><strong>How It Works:</strong> 1. Click 'Start Task'. 2. Open the destination app/link and test it thoroughly. 3. Return to submit your structured feedback. 4. Once reviewed and approved, USDT reward is credited directly to your balance.</div>`;
 }
 function activityView() {
   const s = state.me.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
-  return `${pageHead('My Earnings & Task History', 'Full breakdown of your completed tasks, pending reviews, and earned money.')}
+  return `${pageHead('My Earnings & Task History', 'Full breakdown of your completed tasks, pending reviews, and earned USDT.')}
   <div class="stats-grid" style="margin-bottom:20px">
-    <div class="stat"><div class="stat-icon" style="background:#ecfdf5;color:#059669;font-weight:800;">৳</div><div class="stat-number">৳ ${state.me.points}</div><div class="stat-label">Total Earned (BDT)</div></div>
-    <div class="stat"><div class="stat-icon orange" style="background:#ecfdf5;color:#059669;">✓</div><div class="stat-number">${s.approved || 0}</div><div class="stat-label">Completed & Paid Tasks</div></div>
+    <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(state.me.points)} USDT</div><div class="stat-label">Total Earned (USDT)</div></div>
+    <div class="stat"><div class="stat-icon orange" style="background:#e6f8f2;color:#13795b;">✓</div><div class="stat-number">${s.approved || 0}</div><div class="stat-label">Completed & Paid Tasks</div></div>
     <div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">${s.pending || 0}</div><div class="stat-label">Reports Under Review</div></div>
   </div>
   ${activityTable(state.me.activity)}
-  <div class="helper-note" style="margin-top:20px;border-color:#10b981;background:#ecfdf5;color:#065f46;">Rewards are credited in Bangladeshi Taka (BDT) immediately upon review approval. If a report is rejected due to lack of detail, you can submit an appeal explaining your testing steps.</div>`;
+  <div class="helper-note" style="margin-top:20px;border-color:#26a17b;background:#e6f8f2;color:#0f5132;">Rewards are credited in USDT immediately upon review approval. If a report is rejected due to lack of detail, you can submit an appeal explaining your testing steps.</div>`;
 }
 function detailView() {
   const t = state.selectedCampaign;
@@ -143,30 +155,30 @@ function detailView() {
     <p class="help-text">Clicking above records your test launch and opens the client app. Complete the required steps before submitting your feedback report.</p>
     <h3 style="margin-top:28px">Submit Your Feedback Report</h3>
     <p>Answer the client's questions thoroughly based on your real experience. Specific observations ensure quick approval.</p>
-    ${t.my_status === 'approved' ? `<div class="helper-note" style="border-color:#10b981;background:#ecfdf5;color:#065f46;padding:16px;"><strong>✓ Task Completed & Approved!</strong> You have successfully completed this test and earned <strong>৳ ${t.reward_points} BDT</strong>.</div>` :
-      t.my_status === 'pending' ? `<div class="helper-note" style="border-color:#f59e0b;background:#fffbeb;color:#92400e;padding:16px;"><strong>⏳ Report Under Review:</strong> Your feedback report has been received and is currently being evaluated. Your <strong>৳ ${t.reward_points} BDT</strong> reward will be credited upon approval.</div>` :
+    ${t.my_status === 'approved' ? `<div class="helper-note" style="border-color:#26a17b;background:#e6f8f2;color:#0f5132;padding:16px;"><strong>✓ Task Completed & Approved!</strong> You have successfully completed this test and earned <strong>${formatUsdt(t.reward_points)} USDT</strong>.</div>` :
+      t.my_status === 'pending' ? `<div class="helper-note" style="border-color:#f59e0b;background:#fffbeb;color:#92400e;padding:16px;"><strong>⏳ Report Under Review:</strong> Your feedback report has been received and is currently being evaluated. Your <strong>${formatUsdt(t.reward_points)} USDT</strong> reward will be credited upon approval.</div>` :
       t.my_status === 'rejected' ? `<div class="helper-note" style="border-color:#ef4444;background:#fef2f2;color:#991b1b;padding:16px;"><strong>✕ Report Rejected:</strong> Your report did not meet the required details. You may file an appeal from your Earnings & History tab.</div>` :
       remaining === 0 ? '<div class="helper-note" style="border-color:#6b7280;background:#f3f4f6;color:#374151;padding:16px;"><strong>Task Quota Full:</strong> All testing slots for this campaign are currently reserved.</div>' :
     `<form id="feedback-form"><div class="field"><label for="device">Device Used for Testing</label><select id="device" required><option value="">Choose your device...</option><option>Android phone</option><option>iPhone</option><option>Desktop browser / PC</option><option>Mac / iPad</option><option>Other device</option></select></div>
      ${[t.question1,t.question2,t.question3].map((q,i)=>`<div class="field"><label for="answer${i+1}">${i+1}. ${safe(q)}</label><textarea id="answer${i+1}" minlength="15" maxlength="1000" required placeholder="Describe what you observed, what worked well, and what had issues..."></textarea></div>`).join('')}
-     <div class="action-bar"><button class="primary-btn" type="submit" style="background:#10b981;color:#fff;font-size:13px;padding:12px 20px;">Submit Report & Earn ৳${t.reward_points} BDT →</button><span class="help-text">Reviewed by quality team within 24h</span></div></form>`}
+     <div class="action-bar"><button class="primary-btn" type="submit" style="background:#26a17b;color:#fff;font-size:13px;padding:12px 20px;">Submit Report & Earn ${formatUsdt(t.reward_points)} USDT →</button><span class="help-text">Reviewed by quality team within 24h</span></div></form>`}
    </div><aside class="paper details-side"><h3>Task Brief & Reward</h3>
-    <div class="info-row"><span>Tester Reward</span><b style="color:#059669;font-size:14px;">৳ ${t.reward_points} BDT</b></div>
+    <div class="info-row"><span>Tester Reward</span><b style="color:#13795b;font-size:14px;">₮ ${formatUsdt(t.reward_points)} USDT</b></div>
     <div class="info-row"><span>Completed So Far</span><b>${doneCount} testers</b></div>
     <div class="info-row"><span>Slots Available</span><b>${remaining} of ${t.capacity} open</b></div>
     <div class="info-row"><span>Verification</span><b>Quality Review (24h)</b></div>
-    <div class="info-row"><span>Payout</span><b>Direct to Balance</b></div>
+    <div class="info-row"><span>Payout</span><b>Direct to USDT Balance</b></div>
     <p style="margin-top:16px;font-size:11px;color:#6b7280;line-height:1.6;">Please test genuinely and provide thoughtful feedback. Spam or one-word submissions will be rejected to protect client quality.</p></aside></div>`;
 }
 function adminCampaignRow(c) {
   const next = c.status === 'active' ? 'paused' : 'active';
-  return `<tr><td><div class="mini-title">${safe(c.title)}</div><div class="help-text">${safe(c.game_url)}</div></td><td>${statusLabel(c.status)}</td><td><strong>${c.approved || 0}</strong> approved / ${c.capacity} total capacity (${c.reserved || 0} reserved)</td><td>৳ ${c.reward_points} BDT</td>
+  return `<tr><td><div class="mini-title">${safe(c.title)}</div><div class="help-text">${safe(c.game_url)}</div></td><td>${statusLabel(c.status)}</td><td><strong>${c.approved || 0}</strong> approved / ${c.capacity} total capacity (${c.reserved || 0} reserved)</td><td>${formatUsdt(c.reward_points)} USDT</td>
   <td><button type="button" class="secondary-btn" data-status-id="${safe(c.id)}" data-status-to="${next}">${next === 'active'?'Activate':'Pause'}</button> <button type="button" class="secondary-btn" data-export-id="${safe(c.id)}">Client CSV (Approved)</button> <button type="button" class="secondary-btn" data-export-id="${safe(c.id)}" data-export-scope="internal">Internal CSV</button></td></tr>`;
 }
 function adminCampaignView() {
   return `<div class="paper table-wrap"><h3>Client Campaign Manager</h3><p>Manage advertiser & client testing campaigns. Export approved tester feedback CSV for client delivery.</p>
   ${state.adminCampaigns.length ? `<table class="compact-table"><thead><tr><th>Campaign</th><th>Status</th><th>Completed / Capacity</th><th>Payout</th><th>Actions</th></tr></thead><tbody>${state.adminCampaigns.map(adminCampaignRow).join('')}</tbody></table>` : '<div class="empty-state">No campaigns created yet.</div>'}</div>
-  <div class="paper" style="margin-top:20px"><h3>Create a New Client Campaign</h3><p>Integrate a client app or website test. Set the capacity and tester reward (e.g. 1000 users at 5 BDT per approved test).</p>
+  <div class="paper" style="margin-top:20px"><h3>Create a New Client Campaign</h3><p>Integrate a client app or website test. Set the capacity and tester reward in USDT (e.g. 1000 users at 0.05 USDT or 1 USDT per approved test).</p>
   <form id="campaign-form"><div class="form-grid">
   <div class="field"><label for="campaign-title">Campaign Title / Project Name</label><input id="campaign-title" required minlength="5" maxlength="100" placeholder="e.g. Test Pathao New Checkout & Payment Flow" /></div>
   <div class="field"><label for="campaign-url">App / Website / Bot Link</label><input id="campaign-url" type="url" required placeholder="https://example.com or https://t.me/app_bot" /></div>
@@ -175,29 +187,29 @@ function adminCampaignView() {
   <div class="field form-full"><label for="question1">Feedback Question 1</label><input id="question1" required minlength="10" maxlength="200" placeholder="e.g. Did you encounter any bugs, crashes, or lag during use?" /></div>
   <div class="field form-full"><label for="question2">Feedback Question 2</label><input id="question2" required minlength="10" maxlength="200" placeholder="e.g. How intuitive was the design and navigation?" /></div>
   <div class="field form-full"><label for="question3">Feedback Question 3</label><input id="question3" required minlength="10" maxlength="200" placeholder="e.g. What is the single biggest improvement the team should make?" /></div>
-  <div class="field"><label for="capacity">Target Tester Capacity (e.g. 1000)</label><input id="capacity" type="number" min="1" max="1000" value="1000" required /></div>
-  <div class="field"><label for="reward-points">Tester Payout per Approved Report (BDT)</label><input id="reward-points" type="number" min="1" max="1000" value="5" required /></div>
+  <div class="field"><label for="capacity">Target Tester Capacity (e.g. 1000)</label><input id="capacity" type="number" min="1" max="100000" value="1000" required /></div>
+  <div class="field"><label for="reward-points">Tester Payout per Approved Report (USDT)</label><input id="reward-points" type="number" step="0.01" min="0.001" max="100000" value="0.05" required /></div>
   </div><div class="action-bar"><button type="submit" class="primary-btn dark">Create Campaign →</button></div></form></div>`;
 }
 function adminReviewView() {
   if (!state.reviews.length) return '<div class="empty-state">No tester feedback reports submitted yet.</div>';
-  return state.reviews.map(r => `<div class="review-card"><div class="review-head"><div><div class="review-header">${safe(r.campaign_title)} <span style="color:#778fa1;font-weight:500"> · Tester: ${safe(r.tester_name)}</span></div><div class="review-sub">${timeLabel(r.created_at)} · Device: ${safe(r.device)} · Payout: ৳${r.reward_points} BDT</div></div>${statusLabel(r.status, r.reward_points)}</div>
+  return state.reviews.map(r => `<div class="review-card"><div class="review-head"><div><div class="review-header">${safe(r.campaign_title)} <span style="color:#778fa1;font-weight:500"> · Tester: ${safe(r.tester_name)}</span></div><div class="review-sub">${timeLabel(r.created_at)} · Device: ${safe(r.device)} · Payout: ₮${formatUsdt(r.reward_points)} USDT</div></div>${statusLabel(r.status, r.reward_points)}</div>
   ${r.risk_flags&&r.risk_flags!=='[]'?`<div class="quality-warning">⚑ Review signals: ${safe(JSON.parse(r.risk_flags).map(f=>f.replaceAll('_',' ')).join(' · '))}</div>`:'<div class="quality-clear">✓ Quality signals clear · Ready for evaluation</div>'}
   ${[r.answer1,r.answer2,r.answer3].map((answer,i)=>`<div class="review-label">Question ${i+1}</div><div class="review-answer">${safe(answer)}</div>`).join('')}
-  ${r.status === 'pending' ? `<div class="review-actions"><input id="note-${r.id}" maxlength="400" placeholder="Optional approval note; rejection reason required" aria-label="Review note" /><button type="button" class="primary-btn" style="background:#10b981;" data-review-id="${safe(r.id)}" data-review-as="approved">Approve & Pay ৳${r.reward_points} BDT</button><button type="button" class="danger-btn" data-review-id="${safe(r.id)}" data-review-as="rejected">Reject</button></div>` : `<div class="help-text">Review note: ${safe(r.review_note || 'None')}</div>`}</div>`).join('');
+  ${r.status === 'pending' ? `<div class="review-actions"><input id="note-${r.id}" maxlength="400" placeholder="Optional approval note; rejection reason required" aria-label="Review note" /><button type="button" class="primary-btn" style="background:#26a17b;" data-review-id="${safe(r.id)}" data-review-as="approved">Approve & Pay ${formatUsdt(r.reward_points)} USDT</button><button type="button" class="danger-btn" data-review-id="${safe(r.id)}" data-review-as="rejected">Reject</button></div>` : `<div class="help-text">Review note: ${safe(r.review_note || 'None')}</div>`}</div>`).join('');
 }
 function adminAnalyticsView() {
   const a = state.analytics || {overall:{},campaigns:[],flagged:0,open_appeals:0};
   const n = a.overall || {};
   return `<div class="stats-grid cols-4"><div class="stat"><div class="stat-icon">♙</div><div class="stat-number">${n.total_users||0}</div><div class="stat-label">Registered Testers</div></div>
-   <div class="stat"><div class="stat-icon" style="background:#ecfdf5;color:#059669;font-weight:800;">৳</div><div class="stat-number">৳ ${n.total_paid_bdt||0}</div><div class="stat-label">Total Paid to Testers (BDT)</div></div>
+   <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(n.total_paid_usdt||0)} USDT</div><div class="stat-label">Total Paid to Testers (USDT)</div></div>
    <div class="stat"><div class="stat-icon orange">◷</div><div class="stat-number">${n.submitted||0}</div><div class="stat-label">Reports Submitted</div></div>
-   <div class="stat"><div class="stat-icon" style="background:#ecfdf5;color:#059669;">✓</div><div class="stat-number">${n.approved||0}</div><div class="stat-label">Approved & Paid Reports</div></div></div>
+   <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;">✓</div><div class="stat-number">${n.approved||0}</div><div class="stat-label">Approved & Paid Reports</div></div></div>
    <div class="paper table-wrap" style="margin-top:20px"><h3>Campaign Performance & Client Export</h3><p>Export clean, client-ready CSV reports containing all approved tester feedback for their applications.</p>
    <table class="compact-table"><thead><tr><th>Campaign</th><th>Submitted</th><th>Approved</th><th>Pending</th><th>Rejected</th><th>Approval Rate</th><th>Client Export</th></tr></thead><tbody>
    ${(a.campaigns||[]).map(c=>`<tr><td class="mini-title">${safe(c.title)}</td><td>${c.submitted}</td><td>${c.approved}</td><td>${c.pending}</td><td>${c.rejected}</td><td>${c.approved+c.rejected?Math.round(100*c.approved/(c.approved+c.rejected))+'%':'—'}</td><td><button class="secondary-btn" data-export-id="${safe(c.id)}">Download CSV</button></td></tr>`).join('')||'<tr><td colspan="7">No campaigns yet.</td></tr>'}
    </tbody></table></div>
-   <div class="helper-note" style="margin-top:18px">${a.flagged||0} reports have automated review signals and ${a.open_appeals||0} appeals need attention. A total of ৳ ${n.total_paid_bdt||0} BDT in micro-rewards has been disbursed.</div>`;
+   <div class="helper-note" style="margin-top:18px">${a.flagged||0} reports have automated review signals and ${a.open_appeals||0} appeals need attention. A total of ${formatUsdt(n.total_paid_usdt||0)} USDT in micro-rewards has been disbursed.</div>`;
 }
 function adminAppealsView() {
   if (!state.appeals.length) return '<div class="empty-state">No report disputes or appeals yet.</div>';
@@ -209,7 +221,7 @@ function adminView() {
   if (!state.me.user.admin) { state.view='home';return homeView(); }
   const pending=state.reviews.filter(r=>r.status==='pending').length;
   return `${pageHead('Admin Studio', 'Manage client testing campaigns, review tester feedback, and analyze metrics.')}
-    <div class="stats-grid"><div class="stat"><div class="stat-icon">▦</div><div class="stat-number">${state.adminCampaigns.length}</div><div class="stat-label">Active Campaigns</div></div><div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">${pending}</div><div class="stat-label">Awaiting Review</div></div><div class="stat"><div class="stat-icon orange" style="background:#ecfdf5;color:#059669;">✓</div><div class="stat-number">${state.reviews.filter(r=>r.status==='approved').length}</div><div class="stat-label">Approved & Paid Reports</div></div></div>
+    <div class="stats-grid"><div class="stat"><div class="stat-icon">▦</div><div class="stat-number">${state.adminCampaigns.length}</div><div class="stat-label">Active Campaigns</div></div><div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">${pending}</div><div class="stat-label">Awaiting Review</div></div><div class="stat"><div class="stat-icon orange" style="background:#e6f8f2;color:#13795b;">✓</div><div class="stat-number">${state.reviews.filter(r=>r.status==='approved').length}</div><div class="stat-label">Approved & Paid Reports</div></div></div>
     <div class="admin-tabs"><button class="admin-tab ${state.adminTab==='campaigns'?'active':''}" data-admin-tab="campaigns">Campaigns</button><button class="admin-tab ${state.adminTab==='reviews'?'active':''}" data-admin-tab="reviews">Feedback Reviews (${pending})</button><button class="admin-tab ${state.adminTab==='analytics'?'active':''}" data-admin-tab="analytics">Analytics & Reports</button><button class="admin-tab ${state.adminTab==='appeals'?'active':''}" data-admin-tab="appeals">Appeals (${state.appeals.filter(a=>a.status==='open').length})</button></div>
     ${state.adminTab==='campaigns'?adminCampaignView():state.adminTab==='reviews'?adminReviewView():state.adminTab==='analytics'?adminAnalyticsView():adminAppealsView()}`;
 }
@@ -224,7 +236,7 @@ function render() {
   const page=labels[state.view] || 'Dashboard';
   $('#breadcrumb').textContent=`WORKSPACE / ${page.toUpperCase()}`;
   $('#page-label').textContent=state.view==='home' ? `Welcome, ${state.me.user.first_name}` : page;
-  $('#header-points').textContent=state.me.points;
+  $('#header-points').textContent=formatUsdt(state.me.points);
   $('#avatar').textContent=state.me.user.first_name.charAt(0).toUpperCase();
   document.querySelectorAll('.admin-nav').forEach(el=>el.classList.toggle('hidden',!state.me.user.admin));
   document.querySelectorAll('[data-nav]').forEach(el=>el.classList.toggle('active',el.dataset.nav===state.view||(state.view==='detail'&&el.dataset.nav==='tasks')));
