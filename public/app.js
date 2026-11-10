@@ -340,8 +340,15 @@ function adminReviewView() {
   ${r.status === 'pending' ? `<div class="review-actions"><input id="note-${r.id}" maxlength="400" placeholder="Optional approval note; rejection reason required" aria-label="Review note" /><button type="button" class="primary-btn" style="background:#26a17b;" data-review-id="${safe(r.id)}" data-review-as="approved">Approve & Pay ${formatUsdt(r.reward_points)} USDT</button><button type="button" class="danger-btn" data-review-id="${safe(r.id)}" data-review-as="rejected">Reject</button></div>` : `<div class="help-text">Review note: ${safe(r.review_note || 'None')}</div>`}</div>`).join('');
 }
 function adminWithdrawalView() {
-  if (!state.adminWithdrawals.length) return '<div class="empty-state">No withdrawal requests submitted yet.</div>';
-  return `<div class="paper table-wrap"><h3>USDT Withdrawal Requests</h3>
+  const gsheetBtn = `<a href="https://docs.google.com/spreadsheets/d/1KTT9hVkFs1ar1TUrAuN8ImzsDwhHOT_9eqDL_wClXJs/edit" target="_blank" rel="noopener noreferrer" class="primary-btn" style="background:#137333;color:#fff;text-decoration:none;font-size:12px;padding:7px 12px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;">📊 Open Google Verification Sheet ↗</a>`;
+  if (!state.adminWithdrawals.length) {
+    return `<div class="paper"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h3>USDT Withdrawal Requests</h3>${gsheetBtn}</div><div class="empty-state">No withdrawal requests submitted yet.</div></div>`;
+  }
+  return `<div class="paper table-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <h3 style="margin:0;">USDT Withdrawal Requests</h3>
+      ${gsheetBtn}
+    </div>
     <table class="compact-table">
       <thead><tr><th>Tester</th><th>Lifetime Invites</th><th>Amount</th><th>Network & Wallet</th><th>Date</th><th>Status</th><th>Action / TX Note</th></tr></thead>
       <tbody>
