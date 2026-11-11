@@ -168,12 +168,12 @@ async function notifyReferralInviter(inviterId, count, botToken) {
   try {
     const isUnlocked = count >= 10;
     const text = isUnlocked
-      ? `🚀 *Congratulations!*\n\nA new friend joined TaskKit using your invite link!\n\nYou now have *${count} lifetime invites*! USDT withdrawals are now permanently *UNLOCKED* for your account! 🎉`
-      : `🎉 *New Referral!*\n\nA friend joined TaskKit using your link!\n\nProgress: *${count} / 10 lifetime invites*.\n${10 - count} more invite(s) to unlock USDT withdrawals.`;
+      ? `🚀 <b>Congratulations!</b>\n\nA new friend joined TaskKit using your invite link!\n\nYou now have <b>${count} lifetime invites</b>! USDT withdrawals are now permanently <b>UNLOCKED</b> for your account! 🎉`
+      : `🎉 <b>New Referral!</b>\n\nA friend joined TaskKit using your link!\n\nProgress: <b>${count} / 10 lifetime invites</b>.\n${10 - count} more invite(s) to unlock USDT withdrawals.`;
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: inviterId, text, parse_mode: 'Markdown' })
+      body: JSON.stringify({ chat_id: inviterId, text, parse_mode: 'HTML' })
     });
   } catch {}
 }
@@ -181,22 +181,16 @@ async function notifyReferralInviter(inviterId, count, botToken) {
 async function notifyAdminNewWithdrawal(env, user, amount, network, wallet) {
   if (!env?.BOT_TOKEN || !env?.ADMIN_TELEGRAM_IDS) return;
   const adminIds = String(env.ADMIN_TELEGRAM_IDS).split(',').map(s => s.trim()).filter(Boolean);
-  const text = `🔔 *New USDT Withdrawal Request!*
-
-• *User:* ${user.first_name || 'Tester'} (${user.username ? '@' + user.username : user.id})
-• *Amount:* *${amount.toFixed(2)} USDT*
-• *Network:* *${network}*
-• *Wallet Address:*
-\`${wallet}\`
-
-👉 *Action:* Send ${amount.toFixed(2)} USDT (${network}) to the address above, then mark Paid with the TxID in TaskKit Admin Studio.`;
+  const uName = user.username ? '@' + String(user.username).replace(/[<>&]/g, '') : user.id;
+  const fName = String(user.first_name || 'Tester').replace(/[<>&]/g, '');
+  const text = `🔔 <b>New USDT Withdrawal Request!</b>\n\n• <b>User:</b> ${fName} (${uName})\n• <b>Amount:</b> <b>${amount.toFixed(2)} USDT</b>\n• <b>Network:</b> <b>${network}</b>\n• <b>Wallet Address:</b>\n<code>${wallet}</code>\n\n👉 <b>Action:</b> Send ${amount.toFixed(2)} USDT (${network}) to the address above, then mark Paid with the TxID in TaskKit Admin Studio.`;
 
   for (const adminId of adminIds) {
     try {
       await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: adminId, text, parse_mode: 'Markdown' })
+        body: JSON.stringify({ chat_id: adminId, text, parse_mode: 'HTML' })
       });
     } catch {}
   }
@@ -209,17 +203,17 @@ async function notifyUserWithdrawalStatus(botToken, userId, amount, network, dec
   const isTx = /^0x[a-fA-F0-9]{64}$/i.test(cleanTx);
   if (decision === 'completed') {
     const txLink = isTx && network === 'BEP20'
-      ? `\n\n🔗 *Verify on BscScan:*\nhttps://bscscan.com/tx/${cleanTx}`
-      : (note ? `\n\n*Transaction Note / Ref:* \`${note}\`` : '');
-    text = `💸 *Withdrawal Successful!*\n\nYour withdrawal of *${amount.toFixed(2)} USDT* (${network}) has been processed and sent to your wallet!${txLink}\n\nThank you for testing with TaskKit! 🚀`;
+      ? `\n\n🔗 <b>Verify on BscScan:</b>\nhttps://bscscan.com/tx/${cleanTx}`
+      : (note ? `\n\n<b>Transaction Note / Ref:</b> <code>${String(note).replace(/[<>&]/g, '')}</code>` : '');
+    text = `💸 <b>Withdrawal Successful!</b>\n\nYour withdrawal of <b>${amount.toFixed(2)} USDT</b> (${network}) has been processed and sent to your wallet!${txLink}\n\nThank you for testing with TaskKit! 🚀`;
   } else {
-    text = `⚠️ *Withdrawal Update*\n\nYour withdrawal request for *${amount.toFixed(2)} USDT* could not be processed.\n\n*Reason:* ${note || 'No reason provided.'}\n\nThe funds have been restored to your available TaskKit balance.`;
+    text = `⚠️ <b>Withdrawal Update</b>\n\nYour withdrawal request for <b>${amount.toFixed(2)} USDT</b> could not be processed.\n\n<b>Reason:</b> ${String(note || 'No reason provided.').replace(/[<>&]/g, '')}\n\nThe funds have been restored to your available TaskKit balance.`;
   }
   try {
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: userId, text, parse_mode: 'Markdown' })
+      body: JSON.stringify({ chat_id: userId, text, parse_mode: 'HTML' })
     });
   } catch {}
 }
@@ -587,30 +581,30 @@ export default {
               await recordReferral(env.DB, inviterId, String(fromUser.id), env.BOT_TOKEN);
             }
           }
-          let replyText = '👋 *Welcome to TaskKit!*\n\nTest mobile apps, games, and web services and earn real USDT rewards.\n\n🎮 *Featured Project:* Play our partner game @mergestakeearn_bot to merge, stake, and earn more daily!\n\nTap below to start earning:';
+          let replyText = '👋 <b>Welcome to TaskKit!</b>\n\nTest mobile apps, games, and web services and earn real USDT rewards.\n\n🎮 <b>Featured Project:</b> Play our partner game <b>@mergestakeearn_bot</b> to merge, stake, and earn more daily!\n\nTap below to start earning:';
           let btnText = '🚀 Open TaskKit (Test & Earn USDT)';
 
           if (text.startsWith('/help')) {
-            replyText = 'ℹ️ *TaskKit Tester Guidelines*\n\n1. Open the Mini App to browse active campaigns.\n2. Follow instructions and test the app/game on your mobile device.\n3. Answer the 3 quality questions with genuine feedback.\n4. Rewards are credited in real USDT upon admin review.\n5. Minimum withdrawal is 10.00 USDT (BEP-20 BNB Smart Chain).\n6. 10 lifetime invites unlock withdrawals permanently!\n\n🎮 *Partner Project:* Check out @mergestakeearn_bot to merge & stake tokens!\n\nNeed support? Email: trade09siam@gmail.com';
+            replyText = 'ℹ️ <b>TaskKit Tester Guidelines</b>\n\n1. Open the Mini App to browse active campaigns.\n2. Follow instructions and test the app/game on your mobile device.\n3. Answer the 3 quality questions with genuine feedback.\n4. Rewards are credited in real USDT upon admin review.\n5. Minimum withdrawal is 10.00 USDT (BEP-20 BNB Smart Chain).\n6. 10 lifetime invites unlock withdrawals permanently!\n\n🎮 <b>Partner Project:</b> Check out <b>@mergestakeearn_bot</b> to merge &amp; stake tokens!\n\nNeed support? Email: trade09siam@gmail.com';
             btnText = '📱 Open TaskKit App';
           } else if (text.startsWith('/tasks')) {
-            replyText = '📱 *Active Testing Campaigns*\n\nNew QA testing slots are available! Test mobile apps, websites, and Web3 games like @mergestakeearn_bot to earn USDT.\n\nTap below to view available tasks:';
+            replyText = '📱 <b>Active Testing Campaigns</b>\n\nNew QA testing slots are available! Test mobile apps, websites, and Web3 games like <b>@mergestakeearn_bot</b> to earn USDT.\n\nTap below to view available tasks:';
             btnText = '📱 View Available Tasks';
           } else if (text.startsWith('/withdraw')) {
-            replyText = '💸 *USDT Withdrawals (BEP-20)*\n\n• Minimum payout: *10.00 USDT*\n• Network: *BNB Smart Chain (BEP-20)*\n• Qualification: *10 lifetime friends invited*\n• Processing: Direct to your 0x... wallet\n\nTap below to check your balance and withdraw:';
+            replyText = '💸 <b>USDT Withdrawals (BEP-20)</b>\n\n• Minimum payout: <b>10.00 USDT</b>\n• Network: <b>BNB Smart Chain (BEP-20)</b>\n• Qualification: <b>10 lifetime friends invited</b>\n• Processing: Direct to your 0x... wallet\n\nTap below to check your balance and withdraw:';
             btnText = '💸 Open Withdrawals Page';
           } else if (text.startsWith('/mergestake') || text.startsWith('/game') || text.startsWith('/partner')) {
-            replyText = '🎮 *MergeStake Earn (@mergestakeearn_bot)*\n\nMergeStake is our official partner gaming project where you can:\n\n• 🧩 Merge game assets to level up\n• 💎 Stake crypto tokens for daily yield\n• 💸 Earn and withdraw real money directly in Telegram\n\nTap below to play now:';
+            replyText = '🎮 <b>MergeStake Earn (@mergestakeearn_bot)</b>\n\nMergeStake is our official partner gaming project where you can:\n\n• 🧩 Merge game assets to level up\n• 💎 Stake crypto tokens for daily yield\n• 💸 Earn and withdraw real money directly in Telegram\n\nTap below to play now:';
             btnText = '🚀 Open TaskKit Hub';
           }
 
-          await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
+          const tgSendRes = await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: chatId,
               text: replyText,
-              parse_mode: 'Markdown',
+              parse_mode: 'HTML',
               reply_markup: {
                 inline_keyboard: [
                   [{ text: btnText, web_app: { url: host } }],
@@ -619,6 +613,10 @@ export default {
               }
             })
           });
+          if (!tgSendRes.ok) {
+            const errBody = await tgSendRes.text();
+            console.error('Telegram sendMessage error:', tgSendRes.status, errBody);
+          }
         }
       } catch (err) {
         console.error('Webhook processing error:', err);
