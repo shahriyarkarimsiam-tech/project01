@@ -536,3 +536,89 @@
   .btn-copy-ref, .btn-share-tg { width: 100%; justify-content: center; }
 }
 
+/* ============================================================
+   PARTNER PROJECT SPOTLIGHT (MergeStake Earn)
+   ============================================================ */
+.partner-card {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(110% 120% at 100% 0%, rgba(139, 92, 246, 0.32) 0%, rgba(76, 29, 149, 0.05) 100%),
+              linear-gradient(135deg, #1b0e33 0%, #2e1065 50%, #130726 100%);
+  border: 1.5px solid rgba(167, 139, 250, 0.38);
+  box-shadow: 0 14px 34px rgba(46, 16, 101, 0.3);
+  border-radius: 20px;
+  padding: 24px 26px;
+  color: #ffffff;
+  margin: 22px 0;
+}
+.partner-card::after {
+  content: "🎮";
+  position: absolute;
+  right: -10px;
+  bottom: -20px;
+  font-size: 110px;
+  opacity: 0.08;
+  pointer-events: none;
+  line-height: 1;
+}
+.partner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(167, 139, 250, 0.22);
+  border: 1px solid rgba(196, 181, 253, 0.45);
+  color: #ddd6fe;
+  font-size: 10px;
+  font-weight: 850;
+  padding: 4px 11px;
+  border-radius: 9999px;
+  letter-spacing: 0.8px;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+.partner-content {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.partner-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  box-shadow: 0 6px 20px rgba(109, 40, 217, 0.45);
+  flex-shrink: 0;
+}
+.btn-partner-launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+  color: #ffffff !important;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 11px 22px;
+  border-radius: 11px;
+  border: 0;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.45);
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+.btn-partner-launch:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(124, 58, 237, 0.6);
+}
+.btn-partner-launch:active {
+  transform: translateY(0);
+}
+@media(max-width:760px){
+  .partner-card { padding: 20px 18px; }
+  .partner-content { flex-direction: column; gap: 12px; }
+  .btn-partner-launch { width: 100%; justify-content: center; }
+}
+

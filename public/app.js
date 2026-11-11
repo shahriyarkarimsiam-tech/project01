@@ -116,6 +116,27 @@ function activityTable(rows) {
     }).join('')}
     </tbody></table></div>`;
 }
+function partnerSpotlight() {
+  return `<div class="partner-card">
+    <div class="partner-badge">⭐ FEATURED PARTNER PROJECT</div>
+    <div class="partner-content">
+      <div class="partner-icon">🎮</div>
+      <div style="flex:1;">
+        <h3 style="margin:0 0 4px;font-size:16px;color:#ffffff;letter-spacing:-0.2px;">MergeStake Earn (@mergestakeearn_bot)</h3>
+        <p style="margin:0 0 14px;font-size:12px;color:#c4b5fd;line-height:1.6;max-width:620px;">
+          Play our official partner project to merge game assets, stake crypto tokens, and earn extra money daily directly inside Telegram!
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+          <button type="button" class="btn-partner-launch" data-tg-link="https://t.me/mergestakeearn_bot">
+            <span>🎮 Play @mergestakeearn_bot ↗</span>
+          </button>
+          <span style="font-size:11px;color:#ddd6fe;font-weight:700;">⚡ Instant Play • Free Web3 Rewards</span>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function homeView() {
   const n = state.me.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
   const available = state.campaigns.filter(c => !c.my_status && c.capacity > (c.reserved || 0));
@@ -131,6 +152,7 @@ function homeView() {
       <div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">${n.pending || 0}</div><div class="stat-label">Reports Under Review</div></div>
       <div class="stat"><div class="stat-icon orange">▦</div><div class="stat-number">${available.length}</div><div class="stat-label">Tasks Available to Earn</div></div>
     </div>
+    ${partnerSpotlight()}
     ${pageHead('Available Testing Tasks', 'Choose a client project, test the application, and submit your report.', '<button class="section-link" data-nav="tasks">View all tasks →</button>')}
     ${available.length ? `<div class="task-grid">${available.slice(0,4).map(taskCard).join('')}</div>` : '<div class="empty-state"><h3>All Tasks Currently Filled</h3><p>You have tested all available apps or slots are reserved. New client campaigns are added regularly!</p></div>'}
     ${pageHead('Recent Activity & Submissions', 'Your recent test reports and payout status.', '<button class="section-link" data-nav="activity">Full history →</button>')}
@@ -139,8 +161,9 @@ function homeView() {
 }
 function tasksView() {
   return `${pageHead('Available Testing Tasks', 'Each campaign has a limited user quota. Test according to instructions and submit your report to earn USDT.')}
+    ${partnerSpotlight()}
     ${state.campaigns.length ? `<div class="task-grid">${state.campaigns.map(taskCard).join('')}</div>` : '<div class="empty-state"><h3>No active tasks available right now</h3><p>Check back shortly as new client testing campaigns go live.</p></div>'}
-    <div class="helper-note" style="margin-top:20px;border-color:#3b82f6;background:#eff6ff;color:#1e40af;"><strong>How It Works:</strong> 1. Click 'Start Task'. 2. Open the destination app/link and test it thoroughly. 3. Return to submit your structured feedback. 4. Once reviewed and approved, USDT reward is credited directly to your balance.</div>`;
+    <div class="helper-note" style="margin-top:20px;border-color:#3b82f6;background:#eff6ff;color:#1e40af;"><strong>How It Works:</strong> 1. Click \'Start Task\'. 2. Open the destination app/link and test it thoroughly. 3. Return to submit your structured feedback. 4. Once reviewed and approved, USDT reward is credited directly to your balance.</div>`;
 }
 function activityView() {
   const s = state.me.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
@@ -553,6 +576,14 @@ document.addEventListener('click', async (e)=>{
   if(button.dataset.nav){navigate(button.dataset.nav);return;}
   if(button.dataset.open){openTest(button.dataset.open);return;}
   if(button.dataset.launch){launchLink(button.dataset.launch);return;}
+  if(button.dataset.tgLink){
+    const link = button.dataset.tgLink;
+    try {
+      if (tg?.openTelegramLink) tg.openTelegramLink(link);
+      else window.open(link, '_blank');
+    } catch { window.open(link, '_blank'); }
+    return;
+  }
   if(button.dataset.fill){
     const input = $('#withdraw-amount');
     if (input) input.value = button.dataset.fill;

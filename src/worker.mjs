@@ -587,18 +587,21 @@ export default {
               await recordReferral(env.DB, inviterId, String(fromUser.id), env.BOT_TOKEN);
             }
           }
-          let replyText = '👋 *Welcome to TaskKit!*\n\nTest mobile apps, games, and web services and earn real USDT rewards.\n\nTap below to start earning:';
+          let replyText = '👋 *Welcome to TaskKit!*\n\nTest mobile apps, games, and web services and earn real USDT rewards.\n\n🎮 *Featured Project:* Play our partner game @mergestakeearn_bot to merge, stake, and earn more daily!\n\nTap below to start earning:';
           let btnText = '🚀 Open TaskKit (Test & Earn USDT)';
 
           if (text.startsWith('/help')) {
-            replyText = 'ℹ️ *TaskKit Tester Guidelines*\n\n1. Open the Mini App to browse active campaigns.\n2. Follow instructions and test the app/game on your mobile device.\n3. Answer the 3 quality questions with genuine feedback.\n4. Rewards are credited in real USDT upon admin review.\n5. Minimum withdrawal is 10.00 USDT (BEP-20 BNB Smart Chain).\n6. 10 lifetime invites unlock withdrawals permanently!\n\nNeed support? Email: trade09siam@gmail.com';
+            replyText = 'ℹ️ *TaskKit Tester Guidelines*\n\n1. Open the Mini App to browse active campaigns.\n2. Follow instructions and test the app/game on your mobile device.\n3. Answer the 3 quality questions with genuine feedback.\n4. Rewards are credited in real USDT upon admin review.\n5. Minimum withdrawal is 10.00 USDT (BEP-20 BNB Smart Chain).\n6. 10 lifetime invites unlock withdrawals permanently!\n\n🎮 *Partner Project:* Check out @mergestakeearn_bot to merge & stake tokens!\n\nNeed support? Email: trade09siam@gmail.com';
             btnText = '📱 Open TaskKit App';
           } else if (text.startsWith('/tasks')) {
-            replyText = '📱 *Active Testing Campaigns*\n\nNew QA testing slots are available! Test mobile apps, websites, and Web3 games to earn USDT.\n\nTap below to view available tasks:';
+            replyText = '📱 *Active Testing Campaigns*\n\nNew QA testing slots are available! Test mobile apps, websites, and Web3 games like @mergestakeearn_bot to earn USDT.\n\nTap below to view available tasks:';
             btnText = '📱 View Available Tasks';
           } else if (text.startsWith('/withdraw')) {
             replyText = '💸 *USDT Withdrawals (BEP-20)*\n\n• Minimum payout: *10.00 USDT*\n• Network: *BNB Smart Chain (BEP-20)*\n• Qualification: *10 lifetime friends invited*\n• Processing: Direct to your 0x... wallet\n\nTap below to check your balance and withdraw:';
             btnText = '💸 Open Withdrawals Page';
+          } else if (text.startsWith('/mergestake') || text.startsWith('/game') || text.startsWith('/partner')) {
+            replyText = '🎮 *MergeStake Earn (@mergestakeearn_bot)*\n\nMergeStake is our official partner gaming project where you can:\n\n• 🧩 Merge game assets to level up\n• 💎 Stake crypto tokens for daily yield\n• 💸 Earn and withdraw real money directly in Telegram\n\nTap below to play now:';
+            btnText = '🚀 Open TaskKit Hub';
           }
 
           await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
@@ -610,7 +613,8 @@ export default {
               parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: btnText, web_app: { url: host } }]
+                  [{ text: btnText, web_app: { url: host } }],
+                  [{ text: '🎮 Play MergeStake & Earn Money ↗', url: 'https://t.me/mergestakeearn_bot' }]
                 ]
               }
             })
