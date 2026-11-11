@@ -7,3 +7,532 @@
 .quality-clear{margin:15px 0;padding:10px 13px;background:#edf8f5;color:#376e60;border-radius:9px;font-size:11px}
 .admin-tabs{flex-wrap:wrap}
 .secondary-btn[disabled]{opacity:.45;cursor:not-allowed}
+
+/* ============================================================
+   PREMIUM WITHDRAWAL & CRYPTO WALLET DESIGN SYSTEM
+   ============================================================ */
+
+/* High-Impact Withdraw Button */
+.btn-withdraw-premium {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 12px !important;
+  padding: 8px 16px !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4) !important;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-withdraw-premium:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 22px rgba(16, 185, 129, 0.55) !important;
+  filter: brightness(1.08);
+}
+.btn-withdraw-premium:active {
+  transform: translateY(0);
+  filter: brightness(0.96);
+}
+.btn-withdraw-premium .coin-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Hero Balance Card */
+.withdraw-hero {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(110% 120% at 100% 0%, rgba(16, 185, 129, 0.32) 0%, rgba(6, 78, 59, 0.05) 100%),
+              linear-gradient(135deg, #0b1f1a 0%, #063529 55%, #021e17 100%);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  box-shadow: 0 16px 40px rgba(2, 30, 23, 0.35);
+  border-radius: 20px;
+  padding: 28px 30px;
+  color: #ffffff;
+  margin-bottom: 22px;
+}
+.withdraw-hero::after {
+  content: "₮";
+  position: absolute;
+  right: -10px;
+  bottom: -30px;
+  font-size: 180px;
+  font-weight: 900;
+  color: rgba(16, 185, 129, 0.06);
+  pointer-events: none;
+  line-height: 1;
+}
+.withdraw-hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.wallet-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+  color: #6ee7b7;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.wallet-label::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 10px #34d399;
+}
+.network-pill-tag {
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fde68a;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 750;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.withdraw-hero-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+.withdraw-hero-amount .usdt-sym {
+  font-size: 28px;
+  font-weight: 850;
+  color: #34d399;
+  text-shadow: 0 0 16px rgba(52, 211, 153, 0.5);
+}
+.withdraw-hero-amount .big-num {
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: -1.2px;
+  color: #ffffff;
+  line-height: 1;
+}
+.withdraw-hero-amount .curr-code {
+  font-size: 17px;
+  font-weight: 750;
+  color: #a7f3d0;
+  letter-spacing: 0.5px;
+}
+.withdraw-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.hero-mini-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.hero-mini-stat .sub-lbl {
+  font-size: 11px;
+  color: #93c5b8;
+  font-weight: 600;
+}
+.hero-mini-stat .sub-val {
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+/* Unlock Quest Card (Locked State) */
+.unlock-quest-card {
+  position: relative;
+  background: linear-gradient(135deg, #fffdf7 0%, #fffbeb 50%, #fef3c7 100%);
+  border: 1.5px solid #f59e0b;
+  box-shadow: 0 12px 30px rgba(245, 158, 11, 0.15);
+  border-radius: 20px;
+  padding: 26px 28px;
+  margin-bottom: 24px;
+}
+.quest-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 11px;
+  border-radius: 9999px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.quest-title {
+  font-size: 19px;
+  font-weight: 850;
+  color: #78350f;
+  margin: 0 0 6px;
+  letter-spacing: -0.3px;
+}
+.quest-desc {
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.6;
+  margin: 0 0 16px;
+  max-width: 680px;
+}
+.progress-card {
+  background: #ffffff;
+  border: 1px solid #fde68a;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 3px 12px rgba(217, 119, 6, 0.08);
+  margin-bottom: 16px;
+}
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 750;
+  color: #78350f;
+}
+.progress-track-premium {
+  height: 14px;
+  background: #fef3c7;
+  border-radius: 9999px;
+  overflow: hidden;
+  padding: 2px;
+  border: 1px solid #fde68a;
+}
+.progress-fill-premium {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #f59e0b 0%, #10b981 100%);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.progress-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #b45309;
+}
+.share-box-premium {
+  background: #ffffff;
+  border: 1px solid #fcd34d;
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+.share-box-label {
+  font-size: 11px;
+  font-weight: 850;
+  color: #78350f;
+  margin-bottom: 8px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.share-controls-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.share-link-input {
+  flex: 1;
+  min-width: 220px;
+  background: #fffbeb !important;
+  border: 1px solid #fde68a !important;
+  color: #78350f !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  padding: 11px 14px !important;
+  border-radius: 10px !important;
+}
+.btn-copy-ref {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 10px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-copy-ref:hover {
+  background: #fde68a;
+  color: #78350f;
+}
+.btn-share-tg {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #0088cc 0%, #0077b5 100%) !important;
+  color: #ffffff !important;
+  border: 0;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 10px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 136, 204, 0.35);
+  transition: all 0.2s ease;
+}
+.btn-share-tg:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.perks-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 14px;
+  font-size: 11px;
+  color: #92400e;
+  font-weight: 650;
+}
+.perk-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Unlocked Banner */
+.unlocked-banner {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1.5px solid #10b981;
+  box-shadow: 0 10px 26px rgba(16, 185, 129, 0.14);
+  border-radius: 20px;
+  padding: 22px 26px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.unlocked-shield {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #059669;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 900;
+  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.35);
+  flex-shrink: 0;
+}
+.unlocked-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 850;
+  color: #065f46;
+}
+.unlocked-desc {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: #047857;
+  line-height: 1.5;
+}
+
+/* Modern Form Cards & Inputs */
+.payout-form-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  border-radius: 20px;
+  padding: 28px 30px;
+  margin-bottom: 24px;
+}
+.payout-form-card h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 850;
+  color: #0f172a;
+}
+.payout-form-card .form-subtitle {
+  margin: 0 0 22px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.6;
+}
+.input-with-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-with-action input {
+  padding-right: 90px !important;
+}
+.input-inside-btn {
+  position: absolute;
+  right: 8px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 750;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.input-inside-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.quick-fill-chips {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.quick-chip {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 750;
+  padding: 5px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.quick-chip:hover {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #166534;
+}
+.network-info-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #475569;
+}
+.btn-submit-payout {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  border: 0;
+  border-radius: 12px;
+  padding: 15px 24px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.35);
+  transition: all 0.2s ease;
+  letter-spacing: 0.3px;
+}
+.btn-submit-payout:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 10px 28px rgba(16, 185, 129, 0.45);
+  transform: translateY(-1px);
+}
+.btn-submit-payout:active {
+  transform: translateY(0);
+}
+
+/* Trust Guarantee Grid */
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.trust-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+.trust-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.trust-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0 0 3px;
+}
+.trust-sub {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Pulse animation for pending status */
+.pulse-pending {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.pulse-pending::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b;
+  animation: pulse-glow 1.5s infinite;
+}
+@keyframes pulse-glow {
+  0% { transform: scale(0.95); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.6; }
+}
+
+@media(max-width:760px){
+  .withdraw-hero { padding: 22px 18px; }
+  .withdraw-hero-amount .big-num { font-size: 32px; }
+  .withdraw-hero-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .trust-grid { grid-template-columns: 1fr; gap: 10px; }
+  .unlock-quest-card { padding: 20px 18px; }
+  .payout-form-card { padding: 22px 18px; }
+  .share-controls-row { flex-direction: column; }
+  .share-controls-row input { width: 100%; min-width: unset; }
+  .btn-copy-ref, .btn-share-tg { width: 100%; justify-content: center; }
+}
+

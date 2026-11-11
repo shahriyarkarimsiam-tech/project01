@@ -121,9 +121,9 @@ function homeView() {
   const available = state.campaigns.filter(c => !c.my_status && c.capacity > (c.reserved || 0));
   return `<section class="hero"><div class="hero-content"><div class="hero-kicker">₮ VERIFIED MOBILE TESTING & USDT REWARDS</div><h1>Test Client Apps.<br/>Earn Real USDT Rewards.</h1>
     <p>Help top tech startups and global companies test their apps, games, and web services. Complete structured usability tests, share honest feedback reports, and earn USDT for every approved test.</p>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
       <button class="primary-btn" data-nav="tasks">Browse Available Tasks <span>↗</span></button>
-      <button class="secondary-btn" data-nav="withdraw" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);">Withdraw USDT (${formatUsdt(state.me.available_balance)}) →</button>
+      <button class="btn-withdraw-premium" data-nav="withdraw"><span class="coin-icon">₮</span> Withdraw USDT (${formatUsdt(state.me.available_balance)}) →</button>
     </div></div><div class="hero-shape" aria-hidden="true"></div></section>
     <div class="stats-grid cols-4">
       <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(state.me.available_balance)} USDT</div><div class="stat-label">Available for Withdrawal</div></div>
@@ -144,7 +144,7 @@ function tasksView() {
 }
 function activityView() {
   const s = state.me.stats || { total: 0, pending: 0, approved: 0, rejected: 0 };
-  return `${pageHead('My Earnings & Task History', 'Full breakdown of your completed tasks, pending reviews, and earned USDT.', '<button class="primary-btn" data-nav="withdraw" style="background:#26a17b;color:#fff;">Withdraw Funds (${formatUsdt(state.me.available_balance)} USDT) →</button>')}
+  return `${pageHead('My Earnings & Task History', 'Full breakdown of your completed tasks, pending reviews, and earned USDT.', '<button class="btn-withdraw-premium" data-nav="withdraw"><span class="coin-icon">₮</span> Withdraw Funds (' + formatUsdt(state.me.available_balance) + ' USDT) →</button>')}
   <div class="stats-grid" style="margin-bottom:20px">
     <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(state.me.available_balance)} USDT</div><div class="stat-label">Available for Withdrawal</div></div>
     <div class="stat"><div class="stat-icon orange" style="background:#e6f8f2;color:#13795b;">✓</div><div class="stat-number">${s.approved || 0}</div><div class="stat-label">Completed & Paid Tasks</div></div>
@@ -160,102 +160,179 @@ function withdrawView() {
   const needed = Math.max(0, 10 - invites);
   const percent = Math.min(100, Math.round((invites / 10) * 100));
   const botLink = `https://t.me/taskkitio_bot?start=ref_${state.me.user.id}`;
+  const halfBalance = (Math.floor(state.me.available_balance * 0.5 * 100) / 100).toFixed(2);
 
   return `<button class="breadcrumb-button" data-nav="activity">← Back to Earnings</button>
-  ${pageHead('Withdraw USDT', 'Request payout to your USDT crypto wallet.')}
-  <div class="stats-grid" style="margin-bottom:20px">
-    <div class="stat"><div class="stat-icon" style="background:#e6f8f2;color:#13795b;font-weight:800;font-size:18px;">₮</div><div class="stat-number">${formatUsdt(state.me.available_balance)} USDT</div><div class="stat-label">Available to Withdraw</div></div>
-    <div class="stat"><div class="stat-icon blue">◷</div><div class="stat-number">10.00 USDT</div><div class="stat-label">Minimum Withdrawal</div></div>
-    <div class="stat"><div class="stat-icon ${canWithdraw ? 'orange' : 'blue'}" style="background:${canWithdraw ? '#e6f8f2' : '#fff7ed'};color:${canWithdraw ? '#13795b' : '#c2410c'};">${canWithdraw ? '✓' : '🔒'}</div><div class="stat-number">${invites}/10</div><div class="stat-label">${canWithdraw ? 'Withdrawals Unlocked' : 'Invites Required'}</div></div>
+  ${pageHead('Withdraw USDT', 'Request payouts to your verified BEP-20 crypto wallet.')}
+
+  <!-- 1. HERO WALLET BALANCE CARD -->
+  <div class="withdraw-hero">
+    <div class="withdraw-hero-top">
+      <div class="wallet-label">Live Wallet Balance</div>
+      <div class="network-pill-tag">🟡 BNB Smart Chain (BEP-20)</div>
+    </div>
+    <div class="withdraw-hero-amount">
+      <span class="usdt-sym">₮</span>
+      <span class="big-num">${formatUsdt(state.me.available_balance)}</span>
+      <span class="curr-code">USDT</span>
+    </div>
+    <div class="withdraw-hero-stats">
+      <div class="hero-mini-stat">
+        <span class="sub-lbl">Minimum Withdrawal</span>
+        <span class="sub-val">10.00 USDT</span>
+      </div>
+      <div class="hero-mini-stat">
+        <span class="sub-lbl">Estimated Gas Fee</span>
+        <span class="sub-val" style="color:#6ee7b7;">0.00 USDT (Sponsored)</span>
+      </div>
+      <div class="hero-mini-stat">
+        <span class="sub-lbl">Lifetime Qualification</span>
+        <span class="sub-val" style="color:${canWithdraw ? '#6ee7b7' : '#fde68a'};">${canWithdraw ? '✓ Active & Unlocked' : `${invites}/10 Invites`}</span>
+      </div>
+    </div>
   </div>
 
+  <!-- 2. LIFETIME INVITE QUEST CARD (LOCKED) OR VERIFIED BANNER (UNLOCKED) -->
   ${!canWithdraw ? `
-    <div class="paper" style="border: 2px solid #f59e0b; background: #fffdf5; margin-bottom: 24px;">
-      <div style="display:flex;align-items:flex-start;gap:14px;">
-        <div style="width:40px;height:40px;border-radius:10px;background:#fef3c7;display:grid;place-items:center;font-size:22px;">🔒</div>
-        <div style="flex:1;">
-          <h3 style="margin:0;color:#92400e;font-size:16px;">Withdrawal Locked: 10 Lifetime Invites Required</h3>
-          <p style="margin:6px 0 12px;font-size:12px;color:#78350f;line-height:1.6;">
-            To qualify for withdrawals, invite at least <strong>10 friends</strong> to TaskKit using your Telegram invite link.
-            <strong>This is a one-time lifetime requirement:</strong> once you reach 10 invites, your account is permanently unlocked for your 1st, 2nd, 3rd, and all future withdrawals!
-          </p>
-          <div style="margin:14px 0 8px;">
-            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:6px;">
-              <span style="color:#78350f;">Lifetime Invite Progress:</span>
-              <span style="color:#b45309;font-weight:800;">${invites} / 10 Friends (${percent}%)</span>
-            </div>
-            <div style="height:10px;background:#fde68a;border-radius:10px;overflow:hidden;">
-              <div style="height:100%;width:${percent}%;background:#d97706;border-radius:10px;transition:width 0.3s;"></div>
-            </div>
-            <div style="font-size:11px;color:#92400e;margin-top:6px;font-weight:600;">⚡ Need ${needed} more friend(s) to permanently unlock USDT payouts.</div>
-          </div>
-          <div style="margin-top:16px;background:#fff;border:1px solid #fcd34d;border-radius:10px;padding:14px;">
-            <label style="display:block;font-size:11px;font-weight:800;color:#78350f;margin-bottom:6px;">YOUR TELEGRAM INVITE LINK</label>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <input id="ref-link-input" type="text" readonly value="${botLink}" style="flex:1;min-width:180px;background:#fffbeb;border:1px solid #fde68a;font-size:11px;padding:9px 11px;border-radius:8px;color:#78350f;font-weight:600;" />
-              <button type="button" class="secondary-btn" id="copy-ref-btn">📋 Copy Link</button>
-              <button type="button" class="primary-btn" id="share-ref-btn" style="background:#26a17b;color:#fff;">🚀 Share on Telegram</button>
-            </div>
-            <p style="margin:8px 0 0;font-size:11px;color:#92400e;">When friends click your link and start the bot, your invite count updates automatically and you receive an instant bot notification!</p>
-          </div>
+    <div class="unlock-quest-card">
+      <div class="quest-badge">🔒 Withdrawal Locked</div>
+      <h3 class="quest-title">Complete 10 Lifetime Invites to Unlock Withdrawals</h3>
+      <p class="quest-desc">
+        To qualify for withdrawals, invite at least <strong>10 friends</strong> to TaskKit using your Telegram invite link.
+        <strong>This is a one-time lifetime requirement:</strong> once unlocked, your account is permanently qualified for all your 1st, 2nd, and future withdrawals without ever inviting again!
+      </p>
+
+      <div class="progress-card">
+        <div class="progress-header">
+          <span>Invite Progress</span>
+          <span style="color:#d97706;font-size:13px;font-weight:850;">${invites} / 10 Friends (${percent}%)</span>
+        </div>
+        <div class="progress-track-premium">
+          <div class="progress-fill-premium" style="width:${percent}%;"></div>
+        </div>
+        <div class="progress-footer">
+          <span>⚡ Need ${needed} more friend(s) to unlock payouts forever</span>
+          <span>Lifetime access</span>
+        </div>
+      </div>
+
+      <div class="share-box-premium">
+        <div class="share-box-label">Your Personal Telegram Invite Link</div>
+        <div class="share-controls-row">
+          <input id="ref-link-input" type="text" readonly value="${botLink}" class="share-link-input" />
+          <button type="button" class="btn-copy-ref" id="copy-ref-btn">📋 Copy Link</button>
+          <button type="button" class="btn-share-tg" id="share-ref-btn">🚀 Share on Telegram</button>
+        </div>
+        <div class="perks-list">
+          <div class="perk-item"><span>✓</span> Friends click Start in @taskkitio_bot</div>
+          <div class="perk-item"><span>✓</span> Instant Telegram alert for each invite</div>
+          <div class="perk-item"><span>✓</span> 100% lifetime unlock</div>
         </div>
       </div>
     </div>
   ` : `
-    <div class="paper" style="border: 2px solid #26a17b; background: #f0fdf9; margin-bottom: 24px;">
-      <div style="display:flex;align-items:center;gap:14px;">
-        <div style="width:40px;height:40px;border-radius:10px;background:#d1fae5;display:grid;place-items:center;color:#059669;font-size:22px;font-weight:800;">✓</div>
-        <div>
-          <h3 style="margin:0;color:#065f46;font-size:15px;">Lifetime Withdrawal Qualification Satisfied</h3>
-          <p style="margin:4px 0 0;font-size:12px;color:#047857;">You have invited <strong>${invites} friends</strong> (minimum 10 required). Withdrawals are permanently unlocked for your account for all future requests.</p>
-        </div>
+    <div class="unlocked-banner">
+      <div class="unlocked-shield">✓</div>
+      <div>
+        <h3 class="unlocked-title">✓ Lifetime Withdrawal Qualification Active</h3>
+        <p class="unlocked-desc">You have invited <strong>${invites} friends</strong> (minimum 10 required). Withdrawals are permanently unlocked for your account for all future requests!</p>
       </div>
     </div>
   `}
 
-  <div class="paper">
-    <h3>Request Withdrawal</h3>
-    <p>Minimum payout is 10.00 USDT. Withdrawals are processed within 24–48 hours directly to your crypto wallet.</p>
+  <!-- 3. PAYOUT REQUEST FORM -->
+  <div class="payout-form-card">
+    <h3>Request USDT Withdrawal</h3>
+    <div class="form-subtitle">Withdrawals are processed directly to your BEP-20 crypto wallet within 24–48 hours with full BscScan on-chain proof.</div>
+
     ${canWithdraw ? `
       <form id="withdraw-form">
         <div class="form-grid">
           <div class="field">
-            <label for="withdraw-amount">Amount (USDT)</label>
-            <input id="withdraw-amount" type="number" step="0.01" min="10" max="${state.me.available_balance}" placeholder="Enter amount (min 10.00 USDT)" required />
-            <div style="display:flex;gap:8px;margin-top:6px;">
-              <button type="button" class="flat-link" data-fill="10">Min (10 USDT)</button>
-              <button type="button" class="flat-link" data-fill="${state.me.available_balance}">Max (${formatUsdt(state.me.available_balance)} USDT)</button>
+            <label for="withdraw-amount">Payout Amount (USDT)</label>
+            <div class="input-with-action">
+              <input id="withdraw-amount" type="number" step="0.01" min="10" max="${state.me.available_balance}" placeholder="Enter amount (min 10.00 USDT)" required />
+              <span class="input-inside-btn" style="pointer-events:none;">USDT</span>
+            </div>
+            <div class="quick-fill-chips">
+              <button type="button" class="quick-chip" data-fill="10">Min (10 USDT)</button>
+              ${state.me.available_balance > 10 ? `<button type="button" class="quick-chip" data-fill="${halfBalance}">50% (${halfBalance})</button>` : ''}
+              <button type="button" class="quick-chip" data-fill="${state.me.available_balance}">Max (${formatUsdt(state.me.available_balance)} USDT)</button>
             </div>
           </div>
+
           <div class="field">
-            <label for="withdraw-network">Network</label>
+            <label for="withdraw-network">Payout Network</label>
             <select id="withdraw-network" required>
               <option value="BEP20" selected>USDT (BEP-20) - BNB Smart Chain (Recommended)</option>
               <option value="TRC20">USDT (TRC-20) - Tron Network</option>
               <option value="TON">USDT (TON) - Telegram Open Network</option>
             </select>
+            <div class="network-info-pill">
+              <span>🟡</span>
+              <div><strong>BNB Smart Chain (BEP-20):</strong> Fastest settlement with network fees sponsored by TaskKit.</div>
+            </div>
           </div>
+
           <div class="field form-full">
-            <label for="withdraw-wallet">USDT Wallet Address</label>
-            <input id="withdraw-wallet" type="text" required minlength="15" maxlength="120" placeholder="0x... (BEP-20 / EVM address)" />
+            <label for="withdraw-wallet">USDT Wallet Address (BEP-20)</label>
+            <div class="input-with-action">
+              <input id="withdraw-wallet" type="text" required minlength="15" maxlength="120" placeholder="0x... (Your BEP-20 / EVM address)" />
+              <button type="button" class="input-inside-btn" id="paste-wallet-btn">📋 Paste</button>
+            </div>
+            <div class="help-text">BEP-20 addresses must start with <code>0x</code> and be 42 characters long. Please verify your address carefully.</div>
           </div>
         </div>
-        <div class="action-bar">
-          <button type="submit" class="primary-btn" style="background:#26a17b;color:#fff;padding:12px 24px;font-size:13px;">Submit Withdrawal Request →</button>
+
+        <div class="action-bar" style="margin-top:24px;">
+          <button type="submit" class="btn-submit-payout">Submit Withdrawal Request 💸 →</button>
         </div>
       </form>
     ` : `
-      <div class="empty-state" style="padding:24px;">
-        <p style="margin:0;color:#92400e;font-weight:600;">The withdrawal form is currently locked. Complete your 10 lifetime friend invites above to unlock instant withdrawal requests.</p>
+      <div class="empty-state" style="padding:28px 20px;border-color:#fde68a;background:#fffdf7;">
+        <div style="font-size:32px;margin-bottom:8px;">🔒</div>
+        <h4 style="margin:0 0 6px;color:#92400e;font-size:15px;font-weight:850;">Withdrawal Form Locked</h4>
+        <p style="margin:0;color:#b45309;font-size:12px;line-height:1.6;max-width:440px;margin:0 auto;">
+          The payout form will automatically unlock once you complete your 10 lifetime friend invites above.
+        </p>
       </div>
     `}
   </div>
 
-  <div class="paper table-wrap" style="margin-top:20px;">
-    <h3>Withdrawal History</h3>
+  <!-- 4. TRUST & SECURITY CARDS -->
+  <div class="trust-grid">
+    <div class="trust-card">
+      <div class="trust-icon">🛡️</div>
+      <div>
+        <div class="trust-title">Secure & Validated</div>
+        <p class="trust-sub">BEP-20 addresses are validated before submission to prevent loss of funds.</p>
+      </div>
+    </div>
+    <div class="trust-card">
+      <div class="trust-icon">⚡</div>
+      <div>
+        <div class="trust-title">Fast Processing</div>
+        <p class="trust-sub">Reviewed by admins and sent to your wallet within 24–48 hours.</p>
+      </div>
+    </div>
+    <div class="trust-card">
+      <div class="trust-icon">🔗</div>
+      <div>
+        <div class="trust-title">On-Chain Proof</div>
+        <p class="trust-sub">Each paid withdrawal includes a verifiable BscScan transaction hash.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. WITHDRAWAL HISTORY -->
+  <div class="paper table-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <h3 style="margin:0;">Withdrawal History</h3>
+      <span class="help-text">${state.me.withdrawals?.length || 0} total request(s)</span>
+    </div>
     ${state.me.withdrawals?.length ? `
       <table class="compact-table">
-        <thead><tr><th>Date</th><th>Amount</th><th>Network</th><th>Wallet Address</th><th>Status</th><th>Admin Note / TX</th></tr></thead>
+        <thead><tr><th>Date</th><th>Amount</th><th>Network</th><th>Wallet Address</th><th>Status</th><th>Verification / TX</th></tr></thead>
         <tbody>
           ${state.me.withdrawals.map(w => {
             const cleanNote = (w.admin_note || '').trim();
@@ -266,15 +343,20 @@ function withdrawView() {
               const explorerUrl = w.network === 'BEP20'
                 ? `https://bscscan.com/tx/${hash}`
                 : (w.network === 'TRC20' ? `https://tronscan.org/#/transaction/${hash}` : `https://tonscan.org/tx/${hash}`);
-              noteHtml = `<a href="${explorerUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-weight:600;text-decoration:underline;">View on Explorer ↗</a>`;
+              noteHtml = `<a href="${explorerUrl}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-weight:700;text-decoration:underline;">🔗 View on BscScan ↗</a>`;
             }
+            const statusBadge = w.status === 'pending'
+              ? '<span class="pill pending pulse-pending">⏳ In Review</span>'
+              : (w.status === 'completed'
+                ? '<span class="pill approved">✓ Paid</span>'
+                : '<span class="pill rejected">✕ Rejected</span>');
             return `
             <tr>
               <td>${timeLabel(w.created_at)}</td>
-              <td><strong style="color:#059669;">${formatUsdt(w.amount)} USDT</strong></td>
-              <td><span class="pill active">${safe(w.network)}</span></td>
+              <td><strong style="color:#059669;font-size:13px;">${formatUsdt(w.amount)} USDT</strong></td>
+              <td><span class="pill active" style="font-weight:700;">${safe(w.network)}</span></td>
               <td><code>${safe(w.wallet_address.slice(0,8))}...${safe(w.wallet_address.slice(-6))}</code></td>
-              <td>${w.status === 'pending' ? '<span class="pill pending">⏳ Pending</span>' : w.status === 'completed' ? '<span class="pill approved">✓ Paid</span>' : '<span class="pill rejected">✕ Rejected</span>'}</td>
+              <td>${statusBadge}</td>
               <td>${noteHtml}</td>
             </tr>
           `;}).join('')}
@@ -482,6 +564,20 @@ document.addEventListener('click', async (e)=>{
       input.select();
       navigator.clipboard?.writeText(input.value);
       toast('Invite link copied to clipboard!');
+    }
+    return;
+  }
+  if(button.id === 'paste-wallet-btn'){
+    if (navigator.clipboard?.readText) {
+      navigator.clipboard.readText().then(text => {
+        const walletInput = $('#withdraw-wallet');
+        if (walletInput && text) {
+          walletInput.value = text.trim();
+          toast('Wallet address pasted!');
+        }
+      }).catch(() => toast('Please paste your address manually.', true));
+    } else {
+      toast('Please paste your address manually.', true);
     }
     return;
   }
